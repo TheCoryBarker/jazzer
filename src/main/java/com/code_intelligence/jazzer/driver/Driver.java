@@ -19,7 +19,6 @@ package com.code_intelligence.jazzer.driver;
 import static com.code_intelligence.jazzer.runtime.Constants.IS_ANDROID;
 import static java.lang.System.exit;
 
-import com.code_intelligence.jazzer.agent.AgentInstaller;
 import com.code_intelligence.jazzer.driver.junit.JUnitRunner;
 import com.code_intelligence.jazzer.utils.Log;
 import java.io.File;
@@ -30,9 +29,18 @@ import java.nio.file.Paths;
 import java.security.SecureRandom;
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Stream;
+import static java.util.stream.Collectors.joining;
+import static java.util.stream.Collectors.toList;
+import java.util.AbstractMap.SimpleImmutableEntry;
+import java.util.Map;
+
 
 public class Driver {
   public static int start(List<String> args, boolean spawnsSubprocesses) throws IOException {
+    Opt.registerAndValidateCommandLineArgs(parseJazzerArgs(args));
+    Opt.handleHelpAndVersionArgs();
+    
     if (IS_ANDROID) {
       if (!Opt.autofuzz.get().isEmpty()) {
         Log.error("--autofuzz is not supported on Android");
@@ -108,22 +116,10 @@ public class Driver {
       args.add(getDefaultRssLimitMbArg());
     }
 
-    if (!Opt.instrumentOnly.get().isEmpty()) {
-      if (Opt.dumpClassesDir.get().isEmpty()) {
-        Log.error("--dump_classes_dir must be set with --instrument_only");
-        exit(1);
-      }
-      boolean instrumentationSuccess = OfflineInstrumentor.instrumentJars(Opt.instrumentOnly.get());
-      if (!instrumentationSuccess) {
-        exit(1);
-      }
-      exit(0);
-    }
 
     Driver.class.getClassLoader().setDefaultAssertionStatus(true);
 
     if (!Opt.autofuzz.get().isEmpty()) {
-      AgentInstaller.install(Opt.hooks.get());
       FuzzTargetHolder.fuzzTarget = FuzzTargetHolder.AUTOFUZZ_FUZZ_TARGET;
       return FuzzTargetRunner.startLibFuzzer(args);
     }
@@ -134,18 +130,8 @@ public class Driver {
       exit(1);
     }
 
-    // The JUnitRunner calls AgentInstaller.install itself after modifying flags affecting the
-    // agent.
-    if (JUnitRunner.isSupported()) {
-      Optional<JUnitRunner> runner = JUnitRunner.create(targetClassName, args);
-      if (runner.isPresent()) {
-        return runner.get().run();
-      }
-    }
-
     // Installing the agent after the following "findFuzzTarget" leads to an asan error
     // in it on "Class.forName(targetClassName)", but only during native fuzzing.
-    AgentInstaller.install(Opt.hooks.get());
     FuzzTargetHolder.fuzzTarget = FuzzTargetFinder.findFuzzTarget(targetClassName);
     return FuzzTargetRunner.startLibFuzzer(args);
   }
@@ -160,5 +146,30 @@ public class Driver {
     // add a fixed 1 GiB on top for the fuzzer's own memory usage.
     long maxHeapInBytes = Runtime.getRuntime().maxMemory();
     return "-rss_limit_mb=" + ((2 * maxHeapInBytes / (1024 * 1024)) + 1024);
+  }
+
+  private static SimpleImmutableEntry<String, String> parseSingleArg(String arg) {
+    String[] nameAndValue = arg.split("=", 2);
+    if (nameAndValue.length == 2) {
+      // Example: --keep_going=10 --> (keep_going, 10)
+      return new SimpleImmutableEntry<>(nameAndValue[0], nameAndValue[1]);
+    } else if (nameAndValue[0].startsWith("no")) {
+      // Example: --nohooks --> (hooks, "false")
+      return new SimpleImmutableEntry<>(nameAndValue[0].substring("no".length()), "false");
+    } else {
+      // Example: --dedup --> (dedup, "true")
+      return new SimpleImmutableEntry<>(nameAndValue[0], "true");
+    }
+  }
+
+  private static List<Map.Entry<String, String>> parseJazzerArgs(List<String> args) {
+    return args.stream()
+        .filter(arg -> arg.startsWith("--"))
+        .map(arg -> arg.substring("--".length()))
+        // Filter out "--", which can be used to declare that all further arguments aren't libFuzzer
+        // arguments.
+        .filter(arg -> !arg.isEmpty())
+        .map(Driver::parseSingleArg)
+        .collect(toList());
   }
 }

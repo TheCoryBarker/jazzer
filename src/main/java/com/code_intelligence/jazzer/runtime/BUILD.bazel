@@ -60,6 +60,12 @@ strip_jar(
     ],
 )
 
+java_import(
+    name = "jazzer_bootstrap_import",
+    jars = [":jazzer_bootstrap"],
+    visibility = ["//visibility:public"],
+)
+
 sh_test(
     name = "jazzer_bootstrap_shading_test",
     srcs = ["verify_shading.sh"],
@@ -106,10 +112,6 @@ java_library(
 java_jni_library(
     name = "coverage_map",
     srcs = ["CoverageMap.java"],
-    native_libs = select({
-        "@platforms//os:android": ["//src/main/native/com/code_intelligence/jazzer/driver:jazzer_driver"],
-        "//conditions:default": [],
-    }),
     visibility = [
         "//src/jmh/java/com/code_intelligence/jazzer/instrumentor:__pkg__",
         "//src/main/native/com/code_intelligence/jazzer/driver:__pkg__",

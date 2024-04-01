@@ -49,7 +49,7 @@ final public class CoverageMap {
   static {
     try {
       LOG = Class.forName(
-          "com.code_intelligence.jazzer.utils.Log", false, ClassLoader.getSystemClassLoader());
+          "com.code_intelligence.jazzer.utils.Log", false, CoverageMap.class.getClassLoader());
       LOG_INFO = MethodHandles.lookup().findStatic(
           LOG, "info", MethodType.methodType(void.class, String.class));
       LOG_ERROR = MethodHandles.lookup().findStatic(
