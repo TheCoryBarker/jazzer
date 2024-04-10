@@ -1,6 +1,7 @@
 load("//bazel:compat.bzl", "ANDROID_ONLY", "SKIP_ON_WINDOWS")
 load("@bazel_skylib//rules:copy_file.bzl", "copy_file")
 load("@rules_pkg//:pkg.bzl", "pkg_tar")
+load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_jar")
 
 java_library(
     name = "wrapper",
@@ -45,23 +46,27 @@ copy_file(
 )
 
 java_binary (
-    name = "d8_wrapper",
-    data = [
+    name = "r8",
+    resources = [
         ":jazzer_jar",
     ],
-    srcs = ["D8Wrapper.java"],
+    main_class = "com.code_intelligence.jazzer.r8.R8Wrapper",
+    srcs = ["R8Wrapper.java"],
     deps = [
         "//src/main/java/com/code_intelligence/jazzer/driver:offline_instrumentor",
         "//src/main/java/com/code_intelligence/jazzer/driver:opt",
         "//src/main/java/com/code_intelligence/jazzer/utils:log",
+        "@r8_remote//jar",
     ],
 )
 
+# Build pkg_tar, building java_binary directly will not pass
+# the build config through to the android/cc rules, this
+# is an easy workaround for that
 pkg_tar(
-    name = "d8_release",
+    name = "r8_release",
     srcs = [
-        ":jazzer_jar",
-        ":d8_wrapper_deploy.jar",
+        ":r8_deploy.jar",
     ],
     extension = "tar.gz",
     mode = "0777",

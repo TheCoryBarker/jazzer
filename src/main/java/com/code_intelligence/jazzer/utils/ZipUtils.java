@@ -31,14 +31,18 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.SimpleFileVisitor;
+import java.nio.file.StandardCopyOption;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.util.ArrayList;
 import java.util.Enumeration;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.Stack;
 import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
+import java.util.jar.JarOutputStream;
+import java.util.jar.Manifest;
 import java.util.stream.Stream;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
@@ -47,80 +51,169 @@ import java.util.zip.ZipOutputStream;
 public final class ZipUtils {
   private ZipUtils() {}
 
-  public static Set<String> mergeZipToZip(String src, ZipOutputStream zos, Set<String> skipFiles)
-      throws IOException {
-    HashSet<String> filesAdded = new HashSet<>();
-    try (JarFile jarFile = new JarFile(src)) {
-      // Copy entries from src to dst (jarFile to ZipOutputStream)
-      Enumeration<JarEntry> allEntries = jarFile.entries();
-      while (allEntries.hasMoreElements()) {
-        JarEntry entry = allEntries.nextElement();
-        if (skipFiles != null && skipFiles.contains(entry.getName())) {
+  public static String getJarName(String jarPath) {
+    int lastSeparatorIndex = jarPath.lastIndexOf(File.separator);
+    if (lastSeparatorIndex != -1) {
+      jarPath = jarPath.substring(lastSeparatorIndex + 1);
+    }
+
+    jarPath = jarPath.substring(0, jarPath.lastIndexOf(".jar"));
+    return jarPath;
+  }
+
+  public static void mergeJarToDirectory(String jarPath, String destinationDir) throws IOException {
+    File destDir = new File(destinationDir);
+    if (!destDir.exists()) {
+      destDir.mkdirs();
+    }
+
+    try (JarFile jarFile = new JarFile(jarPath)) {
+      Enumeration<? extends JarEntry> entries = jarFile.entries();
+      while (entries.hasMoreElements()) {
+        JarEntry entry = entries.nextElement();
+        File destinationFile = new File(destinationDir, entry.getName());
+
+        if (destinationFile.exists()) {
           continue;
         }
 
-        zos.putNextEntry(new ZipEntry(entry.getName()));
-        try (InputStream is = jarFile.getInputStream(entry)) {
-          byte[] buf = new byte[1024];
-          int i = 0;
-          while ((i = is.read(buf)) != -1) {
-            zos.write(buf, 0, i);
+        // TODO: create skip file regex instead of this hardcoding
+        if (entry.getName().equals("META-INF/MANIFEST.MF")) {
+          continue;
+        }
+
+        if (entry.getName().endsWith(".so")) {
+          continue;
+        }
+
+        if (entry.getName().endsWith(".jar")) {
+          continue;
+        }
+
+        destinationFile.getParentFile().mkdirs();
+
+        if (!entry.isDirectory()) {
+          try (BufferedInputStream bis = new BufferedInputStream(jarFile.getInputStream(entry));
+               FileOutputStream fos = new FileOutputStream(destinationFile);
+               BufferedOutputStream bos = new BufferedOutputStream(fos, 1024)) {
+            byte[] buffer = new byte[1024];
+            int len;
+
+            while ((len = bis.read(buffer)) > 0) {
+              bos.write(buffer, 0, len);
+            }
           }
-
-          zos.closeEntry();
-          filesAdded.add(entry.getName());
         }
       }
     }
-
-    return filesAdded;
   }
 
-  public static Set<String> mergeDirectoryToZip(String src, ZipOutputStream zos,
-      Set<String> skipFiles) throws IllegalArgumentException, IOException {
-    HashSet<String> filesAdded = new HashSet<>();
-    File sourceDir = new File(src);
-    if (!sourceDir.isDirectory()) {
-      throw new IllegalArgumentException("Argument src must be a directory. Path provided: " + src);
-    }
-
-    Files.walkFileTree(sourceDir.toPath(), new SimpleFileVisitor<Path>() {
-      public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
-        String zipPath = sourceDir.toPath().relativize(file).toString();
-        if (skipFiles.stream().anyMatch(zipPath::endsWith)) {
-          return FileVisitResult.CONTINUE;
-        }
-
-        zos.putNextEntry(new ZipEntry(zipPath));
-        Files.copy(file, zos);
-        filesAdded.add(zipPath);
-        return FileVisitResult.CONTINUE;
-      }
-    });
-
-    return filesAdded;
-  }
-
-  public static void extractFile(String srcZip, String targetFile, String outputFilePath)
+  public static void extractFileFromJar(String jarPath, String targetFile, String destinationPath)
       throws IOException {
-    try (OutputStream out = new FileOutputStream(outputFilePath);
-         ZipInputStream zis = new ZipInputStream(new FileInputStream(srcZip));) {
-      ZipEntry ze = zis.getNextEntry();
-      while (ze != null) {
-        if (ze.getName().equals(targetFile)) {
-          byte[] buf = new byte[1024];
-          int read = 0;
-
-          while ((read = zis.read(buf)) > -1) {
-            out.write(buf, 0, read);
+    try (JarFile jarFile = new JarFile(jarPath)) {
+      ZipEntry entry = jarFile.getEntry(targetFile);
+      if (entry != null) {
+        File destinationFile = new File(destinationPath);
+        try (InputStream is = jarFile.getInputStream(entry);
+             FileOutputStream fos = new FileOutputStream(destinationFile)) {
+          byte[] buffer = new byte[1024];
+          int len;
+          while ((len = is.read(buffer)) > 0) {
+            fos.write(buffer, 0, len);
           }
-
-          out.close();
-          break;
+          System.out.println("File extracted to: " + destinationPath);
         }
-
-        ze = zis.getNextEntry();
+      } else {
+        System.out.println("File does not exist in JAR");
       }
+    }
+  }
+
+  public static File extractFileFromJar(String target) {
+    try (InputStream stream = ZipUtils.class.getResourceAsStream(target)) {
+      if (stream == null) {
+        throw new IllegalStateException(
+            String.format("Failed to find jar %s in resources.", target));
+      }
+
+      String jarName = getJarName(target);
+      File jar = Files.createTempFile(jarName, ".jar").toFile();
+      jar.deleteOnExit();
+      Files.copy(stream, jar.toPath(), StandardCopyOption.REPLACE_EXISTING);
+
+      return jar;
+    } catch (IOException e) {
+      throw new IllegalStateException(
+          String.format("Failed to find jar %s in resources.", target), e);
+    }
+  }
+
+  public static Manifest getManifest(String jarPath) throws IOException {
+    try (JarFile jarFile = new JarFile(jarPath)) {
+      ZipEntry entry = jarFile.getEntry("META-INF/MANIFEST.MF");
+      if (entry != null) {
+        try (InputStream is = jarFile.getInputStream(entry)) {
+          return new Manifest(is);
+        }
+      } else {
+        System.out.println("Could not find manifest");
+      }
+    }
+
+    return null;
+  }
+
+  public static File directoryToJar(File inputDirectory, Manifest manifest) throws IOException {
+    File outputjar = Files.createTempFile("instrumentedjar", ".jar").toFile();
+    outputjar.deleteOnExit();
+
+    FileOutputStream fos = new FileOutputStream(outputjar.getPath().toString());
+    try (JarOutputStream jos = new JarOutputStream(fos, manifest)) {
+      addDirectoryToJar(inputDirectory, jos);
+    }
+
+    return outputjar;
+  }
+
+  private static void addDirectoryToJar(File directory, JarOutputStream jos) throws IOException {
+    File[] files = directory.listFiles();
+    byte[] buffer = new byte[1024];
+    String baseDir = directory.getPath();
+
+    Stack<File> directories = new Stack<>();
+    directories.push(directory);
+
+    while (!directories.isEmpty()) {
+      File currentDir = directories.pop();
+      files = currentDir.listFiles();
+
+      for (File file : files) {
+        if (file.isDirectory()) {
+          directories.push(file);
+        } else {
+          String entryName = file.getPath().substring(baseDir.length() + 1);
+          JarEntry entry = new JarEntry(entryName);
+          jos.putNextEntry(entry);
+
+          try (FileInputStream in = new FileInputStream(file)) {
+            int len;
+            while ((len = in.read(buffer)) > 0) {
+              jos.write(buffer, 0, len);
+            }
+          }
+          jos.closeEntry();
+        }
+      }
+    }
+  }
+
+  public static boolean fileExistsInJar(String jarPath, String filePath) {
+    try (JarFile zipFile = new JarFile(jarPath)) {
+      ZipEntry entry = zipFile.getEntry(filePath);
+      return entry != null;
+    } catch (IOException e) {
+      System.out.println("Error: " + e.getMessage());
+      return false;
     }
   }
 }

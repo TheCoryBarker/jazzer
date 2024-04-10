@@ -15,8 +15,9 @@
  */
 
 public class Jazzer {
-    public static void main(String[] args) {
-      System.out.println("hey");
-    }
-  
+  public static void main(String[] args) {
+    // This path is not used in the Android flow.
+    // TODO: either delete this whole flow or add it back in from git history
+    System.out.println("nothing");
+  }
 }

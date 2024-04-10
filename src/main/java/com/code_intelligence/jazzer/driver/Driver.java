@@ -18,6 +18,7 @@ package com.code_intelligence.jazzer.driver;
 
 import static com.code_intelligence.jazzer.runtime.Constants.IS_ANDROID;
 import static java.lang.System.exit;
+import static java.util.stream.Collectors.joining;
 
 import com.code_intelligence.jazzer.driver.junit.JUnitRunner;
 import com.code_intelligence.jazzer.utils.Log;
@@ -28,19 +29,15 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.security.SecureRandom;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Stream;
-import static java.util.stream.Collectors.joining;
-import static java.util.stream.Collectors.toList;
-import java.util.AbstractMap.SimpleImmutableEntry;
-import java.util.Map;
-
 
 public class Driver {
   public static int start(List<String> args, boolean spawnsSubprocesses) throws IOException {
-    Opt.registerAndValidateCommandLineArgs(parseJazzerArgs(args));
+    Opt.registerAndValidateCommandLineArgs(Opt.parseJazzerArgs(args));
     Opt.handleHelpAndVersionArgs();
-    
+
     if (IS_ANDROID) {
       if (!Opt.autofuzz.get().isEmpty()) {
         Log.error("--autofuzz is not supported on Android");
@@ -116,7 +113,6 @@ public class Driver {
       args.add(getDefaultRssLimitMbArg());
     }
 
-
     Driver.class.getClassLoader().setDefaultAssertionStatus(true);
 
     if (!Opt.autofuzz.get().isEmpty()) {
@@ -146,30 +142,5 @@ public class Driver {
     // add a fixed 1 GiB on top for the fuzzer's own memory usage.
     long maxHeapInBytes = Runtime.getRuntime().maxMemory();
     return "-rss_limit_mb=" + ((2 * maxHeapInBytes / (1024 * 1024)) + 1024);
-  }
-
-  private static SimpleImmutableEntry<String, String> parseSingleArg(String arg) {
-    String[] nameAndValue = arg.split("=", 2);
-    if (nameAndValue.length == 2) {
-      // Example: --keep_going=10 --> (keep_going, 10)
-      return new SimpleImmutableEntry<>(nameAndValue[0], nameAndValue[1]);
-    } else if (nameAndValue[0].startsWith("no")) {
-      // Example: --nohooks --> (hooks, "false")
-      return new SimpleImmutableEntry<>(nameAndValue[0].substring("no".length()), "false");
-    } else {
-      // Example: --dedup --> (dedup, "true")
-      return new SimpleImmutableEntry<>(nameAndValue[0], "true");
-    }
-  }
-
-  private static List<Map.Entry<String, String>> parseJazzerArgs(List<String> args) {
-    return args.stream()
-        .filter(arg -> arg.startsWith("--"))
-        .map(arg -> arg.substring("--".length()))
-        // Filter out "--", which can be used to declare that all further arguments aren't libFuzzer
-        // arguments.
-        .filter(arg -> !arg.isEmpty())
-        .map(Driver::parseSingleArg)
-        .collect(toList());
   }
 }
