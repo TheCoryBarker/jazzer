@@ -1,0 +1,12 @@
+
+java_binary (
+    name = "r8",
+    main_class = "com.code_intelligence.jazzer.r8.R8Wrapper",
+    srcs = ["R8Wrapper.java"],
+    deps = [
+        "//src/main/java/com/code_intelligence/jazzer/driver:offline_instrumentor",
+        "//src/main/java/com/code_intelligence/jazzer/driver:opt",
+        "//src/main/java/com/code_intelligence/jazzer/utils:log",
+        "//third_party/android:local_r8",
+    ],
+)

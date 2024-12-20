@@ -38,7 +38,7 @@ public class AndroidStart extends Service {
     ArrayList<String> args = new ArrayList<>();
     args.add("--reproducer_path=" + getFilesDir().getPath().toString());
     // TODO this should be found more intelligently
-    args.add("--target_class=com.google.android.samples.hellojni.FuzzMe");
+    args.add("--target_class=com.app.cory.ExampleFuzzer");
 
     AndroidStartWrapper.Call(args);
   }

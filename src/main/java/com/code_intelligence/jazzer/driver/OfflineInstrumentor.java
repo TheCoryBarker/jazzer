@@ -57,7 +57,7 @@ public class OfflineInstrumentor {
     // before dexing.
 
     // Clear instrumented dir before adding new instrumented classes
-    File dumpClassesDir = new File("/tmp/jazzer_instrumented");
+    File dumpClassesDir = new File(Opt.dumpClassesDir.get());
     dumpClassesDir.deleteOnExit();
     if (dumpClassesDir.exists()) {
       for (String fn : dumpClassesDir.list()) {
@@ -78,7 +78,7 @@ public class OfflineInstrumentor {
     File jazzerRuntimeJar = Files.createTempFile("jazzerRuntime", ".jar").toFile();
     ZipUtils.extractFileFromJar(jazzerForAndroid.getPath(),
         "com/code_intelligence/jazzer/jazzer.jar", jazzerRuntimeJar.getPath());
-    jazzerJar.deleteOnExit();
+    jazzerRuntimeJar.deleteOnExit();
 
     // instrument all jars and replace original with instrumented version
     for (String jarpath : jarList) {
@@ -121,12 +121,12 @@ public class OfflineInstrumentor {
 
     // Copy jazzer files to directory
     // Contains Android specific startup code
-    ZipUtils.mergeJarToDirectory(androidJazzerJar.getPath(), Opt.dumpClassesDir.get());
+    //ZipUtils.mergeJarToDirectory(androidJazzerJar.getPath(), Opt.dumpClassesDir.get());
     // Contains Jazzer runtime classes
-    ZipUtils.mergeJarToDirectory(jazzerRuntimeJar.getPath(), Opt.dumpClassesDir.get());
+    //ZipUtils.mergeJarToDirectory(jazzerRuntimeJar.getPath(), Opt.dumpClassesDir.get());
     // Contains classes that will need to be injected into bootstrap if bootstrap class
     // instrumentation is to be supported.
-    ZipUtils.mergeJarToDirectory(bootstrapJar.getPath(), Opt.dumpClassesDir.get());
+    //ZipUtils.mergeJarToDirectory(bootstrapJar.getPath(), Opt.dumpClassesDir.get());
     // Merge all class files that are not newly instrumented class files into output dir
     ZipUtils.mergeJarToDirectory(jar, Opt.dumpClassesDir.get());
 
@@ -165,7 +165,7 @@ public class OfflineInstrumentor {
         String className = name.substring(0, name.lastIndexOf(".class"));
         className = className.replace('/', '.');
         allClasses.add(className);
-        Log.info("Found class: " + className);
+        //Log.info("Found class: " + className);
       }
     }
 
