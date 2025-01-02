@@ -45,6 +45,24 @@ copy_file(
     ],
 )
 
+copy_file(
+    name = "jazzer_shaded_jar",
+    src = "//src/main/java/com/code_intelligence/jazzer:jazzer",
+    out = "jazzer.jar",
+    visibility = [
+        "//src/main/java/com/code_intelligence/jazzer/agent:__pkg__",
+    ],
+)
+
+copy_file(
+    name = "jazzer_bootstrap_jar",
+    src = "//src/main/java/com/code_intelligence/jazzer/runtime:jazzer_bootstrap",
+    out = "jazzer_bootstrap.jar",
+    visibility = [
+        "//src/main/java/com/code_intelligence/jazzer/agent:__pkg__",
+    ],
+)
+
 java_binary (
     name = "r8",
     resources = [
