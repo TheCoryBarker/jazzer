@@ -19,7 +19,7 @@ import sun.misc.Signal;
 
 public final class SignalHandler {
   static {
-    RulesJni.loadLibrary("jazzer_signal_handler", SignalHandler.class);
+    System.loadLibrary("jazzer_signal_handler");
     Signal.handle(new Signal("INT"), sig -> handleInterrupt());
   }
 

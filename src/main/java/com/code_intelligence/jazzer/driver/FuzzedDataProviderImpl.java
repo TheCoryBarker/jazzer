@@ -21,7 +21,7 @@ import sun.misc.Unsafe;
 
 public class FuzzedDataProviderImpl implements FuzzedDataProvider, AutoCloseable {
   static {
-    RulesJni.loadLibrary("jazzer_fuzzed_data_provider", "/com/code_intelligence/jazzer/driver");
+    System.loadLibrary("jazzer_fuzzed_data_provider");
     nativeInit();
   }
 

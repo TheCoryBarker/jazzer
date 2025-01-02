@@ -86,6 +86,12 @@ class RuntimeInstrumentor(
             if (internalClassName.startsWith("com/code_intelligence/jazzer/")) {
                 return null
             }
+
+            // Bail out early if we would instrument r8
+            if (internalClassName.startsWith("com/android/tools/r8")) {
+                return null
+            }
+
             // Workaround for a JDK bug (http://bugs.java.com/bugdatabase/view_bug.do?bug_id=JDK-8299798):
             // When retransforming a class in the Java standard library, the provided classfileBuffer does not contain
             // any StackMapTable attributes. Our transformations require stack map frames to calculate the number of
@@ -175,6 +181,7 @@ class RuntimeInstrumentor(
             additionalClassesToHookInstrument.includes(internalClassName) -> Pair(false, false)
             else -> return null
         }
+
         val className = internalClassName.replace('/', '.')
         val classfileBuffer = maybeClassfileBuffer ?: ClassGraph()
             .enableSystemJarsAndModules()
@@ -216,6 +223,7 @@ class RuntimeInstrumentor(
         } else {
             null
         }
+        
         return ClassInstrumentor(internalClassName, bytecode).run {
             if (fullInstrumentation) {
                 // Coverage instrumentation must be performed before any other code updates

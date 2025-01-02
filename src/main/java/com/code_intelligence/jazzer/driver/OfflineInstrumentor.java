@@ -15,82 +15,126 @@
 package com.code_intelligence.jazzer.driver;
 
 import com.code_intelligence.jazzer.agent.AgentInstaller;
+import com.code_intelligence.jazzer.driver.Opt;
 import com.code_intelligence.jazzer.utils.Log;
 import com.code_intelligence.jazzer.utils.ZipUtils;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.lang.UnsupportedClassVersionError;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLClassLoader;
+import java.nio.file.FileVisitResult;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.nio.file.SimpleFileVisitor;
+import java.nio.file.StandardCopyOption;
+import java.nio.file.attribute.BasicFileAttributes;
+import java.nio.file.attribute.FileAttribute;
+import java.nio.file.attribute.PosixFilePermissions;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Enumeration;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
+import java.util.jar.JarOutputStream;
+import java.util.jar.Manifest;
 import java.util.zip.ZipOutputStream;
 
 public class OfflineInstrumentor {
-  /**
-   * Create a new jar file at <jazzer_path>/<jarBaseName>.instrumented.jar
-   * for each jar in passed in, with classes that have Jazzer instrumentation.
-   *
-   * @param jarLists list of jars to instrument
-   * @return a boolean representing the success status
-   */
-  public static boolean instrumentJars(List<String> jarLists) {
-    AgentInstaller.install(Opt.hooks.get());
+  public static boolean instrumentJars(List<String> jarList, boolean addNativeLibs)
+      throws IOException {
+    AgentInstaller.install(true);
+    // TODO: as a working proof of concept, this has only been tested on one jar.
+    // This should be fine for most scenarios since this should be happening directly
+    // before dexing.
 
-    // Clear Opt.dumpClassesDir before adding new instrumented classes
+    // Clear instrumented dir before adding new instrumented classes
     File dumpClassesDir = new File(Opt.dumpClassesDir.get());
+    dumpClassesDir.deleteOnExit();
     if (dumpClassesDir.exists()) {
       for (String fn : dumpClassesDir.list()) {
         new File(Opt.dumpClassesDir.get(), fn).delete();
       }
     }
 
-    List<String> errorMessages = new ArrayList<>();
-    for (String jarPath : jarLists) {
-      String outputBaseName = jarPath;
-      if (outputBaseName.contains(File.separator)) {
-        outputBaseName = outputBaseName.substring(
-            outputBaseName.lastIndexOf(File.separator) + 1, outputBaseName.length());
-      }
+    // extract bootstrap.jar & jazzer.jar
+    File jazzerForAndroid =
+        ZipUtils.extractFileFromJar("/com/code_intelligence/jazzer/android/jazzer_android.jar");
+    jazzerForAndroid.deleteOnExit();
 
-      if (outputBaseName.contains(".jar")) {
-        outputBaseName = outputBaseName.substring(0, outputBaseName.lastIndexOf(".jar"));
-      }
+    File bootstrapJar = Files.createTempFile("bootstrap", ".jar").toFile();
+    ZipUtils.extractFileFromJar(jazzerForAndroid.getPath(),
+        "com/code_intelligence/jazzer/runtime/jazzer_bootstrap.jar", bootstrapJar.getPath());
+    bootstrapJar.deleteOnExit();
 
-      Log.info("Instrumenting jar file: " + jarPath);
+    File jazzerRuntimeJar = Files.createTempFile("jazzerRuntime", ".jar").toFile();
+    ZipUtils.extractFileFromJar(jazzerForAndroid.getPath(),
+        "com/code_intelligence/jazzer/jazzer.jar", jazzerRuntimeJar.getPath());
+    jazzerRuntimeJar.deleteOnExit();
 
-      try {
-        errorMessages = createInstrumentedClasses(jarPath);
-      } catch (IOException e) {
-        errorMessages.add("Failed to instrument jar: " + jarPath
-            + ". Please ensure the file at this location is a jar file. Error Message: " + e);
-        continue;
-      }
-
-      try {
-        createInstrumentedJar(jarPath, Opt.dumpClassesDir.get() + File.separator + outputBaseName,
-            outputBaseName + ".instrumented.jar");
-      } catch (Exception e) {
-        errorMessages.add("Failed to instrument jar: " + jarPath + ". Error: " + e);
-      }
+    // instrument all jars and replace original with instrumented version
+    for (String jarpath : jarList) {
+      File jar = processSingleJar(
+          jarpath, jazzerForAndroid, jazzerRuntimeJar, bootstrapJar, addNativeLibs);
+      Files.copy(jar.toPath(), Paths.get(jarpath), StandardCopyOption.REPLACE_EXISTING);
     }
 
-    // Log all errors at the end
-    for (String error : errorMessages) {
-      Log.error(error);
+    return true;
+  }
+
+  private static File processSingleJar(String jar, File androidJazzerJar, File jazzerRuntimeJar,
+      File bootstrapJar, boolean addNativeLibs) throws IOException {
+    // Instrument classes and output new file in output dir
+    createInstrumentedClasses(jar);
+
+    Path nativeLibsDir = Paths.get(Opt.dumpClassesDir.get() + File.separator + "lib"
+        + File.separator + "arm64-v8a" + File.separator);
+    new File(nativeLibsDir.toString()).mkdirs();
+
+    if (addNativeLibs) {
+      Path jazzerDriverSO = Files.createFile(
+          Paths.get(nativeLibsDir.toString() + File.separator + "libjazzer_driver.so"));
+      ZipUtils.extractFileFromJar(jazzerRuntimeJar.getPath(),
+          "com/code_intelligence/jazzer/driver/jazzer_driver_android_aarch64/libjazzer_driver.so",
+          jazzerDriverSO.toString());
+
+      Path jazzerPreloadSO = Files.createFile(
+          Paths.get(nativeLibsDir.toString() + File.separator + "libjazzer_preload.so"));
+      ZipUtils.extractFileFromJar(jazzerRuntimeJar.getPath(),
+          "com/code_intelligence/jazzer/jazzer_preload_android_aarch64/libjazzer_preload.so",
+          jazzerPreloadSO.toString());
+
+      Path fuzzedDataProviderSO = Files.createFile(Paths.get(
+          nativeLibsDir.toString() + File.separator + "libjazzer_fuzzed_data_provider.so"));
+      ZipUtils.extractFileFromJar(jazzerRuntimeJar.getPath(),
+          "com/code_intelligence/jazzer/driver/jazzer_fuzzed_data_provider_android_aarch64/libjazzer_fuzzed_data_provider.so",
+          fuzzedDataProviderSO.toString());
     }
 
-    return errorMessages.isEmpty();
+    // Copy jazzer files to directory
+    // Contains Android specific startup code
+    //ZipUtils.mergeJarToDirectory(androidJazzerJar.getPath(), Opt.dumpClassesDir.get());
+    // Contains Jazzer runtime classes
+    //ZipUtils.mergeJarToDirectory(jazzerRuntimeJar.getPath(), Opt.dumpClassesDir.get());
+    // Contains classes that will need to be injected into bootstrap if bootstrap class
+    // instrumentation is to be supported.
+    //ZipUtils.mergeJarToDirectory(bootstrapJar.getPath(), Opt.dumpClassesDir.get());
+    // Merge all class files that are not newly instrumented class files into output dir
+    ZipUtils.mergeJarToDirectory(jar, Opt.dumpClassesDir.get());
+
+    // Get manifest for new jar, and create new jar from output dir
+    Manifest manifest = ZipUtils.getManifest(jar);
+    File tempJar = ZipUtils.directoryToJar(new File(Opt.dumpClassesDir.get()), manifest);
+
+    return tempJar;
   }
 
   /**
@@ -100,8 +144,7 @@ public class OfflineInstrumentor {
    * @param jarPath a path to a jar file to instrument.
    * @return a list of errors that were hit when trying to instrument all classes in jar
    */
-  private static List<String> createInstrumentedClasses(String jarPath) throws IOException {
-    List<String> errorMessages = new ArrayList<>();
+  private static void createInstrumentedClasses(String jarPath) throws IOException {
     List<String> allClasses = new ArrayList<>();
 
     // Collect all classes for jar file
@@ -122,14 +165,14 @@ public class OfflineInstrumentor {
         String className = name.substring(0, name.lastIndexOf(".class"));
         className = className.replace('/', '.');
         allClasses.add(className);
-        Log.info("Found class: " + className);
+        //Log.info("Found class: " + className);
       }
     }
 
     // No classes found, so none to load. Return errors
     if (allClasses.size() == 0) {
-      errorMessages.add("Classes is empty for jar: " + jarPath);
-      return errorMessages;
+      Log.warn("Classes is empty for jar: " + jarPath);
+      return;
     }
 
     // Create class loader to load in all classes
@@ -149,31 +192,24 @@ public class OfflineInstrumentor {
       } catch (Throwable e) {
         // Catch all exceptions/errors and keep instrumenting to give user the option to manually
         // fix one offs if possible
-        errorMessages.add("Failed to instrument class: " + className + ". Error: " + e);
+        Log.warn("Failed to instrument class: " + className + ". Error: " + e.toString());
       }
     }
 
-    return errorMessages;
-  }
+    // clean up .original.class and .failed.class
+    Path instClassesDir = Paths.get(Opt.dumpClassesDir.get());
+    Files.walkFileTree(instClassesDir, new SimpleFileVisitor<Path>() {
+      public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
+        String relPath = instClassesDir.relativize(file).toString();
+        boolean exists = ZipUtils.fileExistsInJar(jarPath, relPath);
+        if (!exists) {
+          // Remove from output dir. This is not necessarily needed, but removes packaging up
+          // bootstrap classes into our new jar.
+          file.toFile().delete();
+        }
 
-  /**
-   * This will create a new jar out of specified original jar and the merge in the instrumented
-   * classes from the specified instrumented classes dir
-   *
-   * @param originalJarPath a path to the original jar.
-   * @param instrumentedClassesDir a path to the instrumented classes dir.
-   * @param outputZip output file.
-   */
-  private static void createInstrumentedJar(
-      String originalJarPath, String instrumentedClassesDir, String outputZip) throws IOException {
-    try (ZipOutputStream zos = new ZipOutputStream(new FileOutputStream(outputZip))) {
-      Set<String> dirFilesToSkip = new HashSet<>();
-      dirFilesToSkip.add(".original.class");
-      dirFilesToSkip.add(".failed.class");
-      Set<String> filesMerged =
-          ZipUtils.mergeDirectoryToZip(instrumentedClassesDir, zos, dirFilesToSkip);
-
-      ZipUtils.mergeZipToZip(originalJarPath, zos, filesMerged);
-    }
+        return FileVisitResult.CONTINUE;
+      }
+    });
   }
 }

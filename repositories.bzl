@@ -183,6 +183,13 @@ def jazzer_dependencies(android = False):
     )
 
     maybe(
+        http_jar,
+        name = "r8_remote",
+        url = "https://storage.googleapis.com/r8-releases/raw/8.4.5-dev/r8.jar",
+        #file = "/usr/local/google/home/cobark/Desktop/Repos/aosp/prebuilts/r8/r8.jar",
+    )
+
+    maybe(
         http_archive,
         name = "jazzer_libfuzzer",
         build_file = Label("//third_party:libFuzzer.BUILD"),

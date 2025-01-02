@@ -18,8 +18,8 @@ package com.code_intelligence.jazzer.driver;
 
 import static com.code_intelligence.jazzer.runtime.Constants.IS_ANDROID;
 import static java.lang.System.exit;
+import static java.util.stream.Collectors.joining;
 
-import com.code_intelligence.jazzer.agent.AgentInstaller;
 import com.code_intelligence.jazzer.driver.junit.JUnitRunner;
 import com.code_intelligence.jazzer.utils.Log;
 import java.io.File;
@@ -29,10 +29,15 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.security.SecureRandom;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Stream;
 
 public class Driver {
   public static int start(List<String> args, boolean spawnsSubprocesses) throws IOException {
+    Opt.registerAndValidateCommandLineArgs(Opt.parseJazzerArgs(args));
+    Opt.handleHelpAndVersionArgs();
+
     if (IS_ANDROID) {
       if (!Opt.autofuzz.get().isEmpty()) {
         Log.error("--autofuzz is not supported on Android");
@@ -108,22 +113,9 @@ public class Driver {
       args.add(getDefaultRssLimitMbArg());
     }
 
-    if (!Opt.instrumentOnly.get().isEmpty()) {
-      if (Opt.dumpClassesDir.get().isEmpty()) {
-        Log.error("--dump_classes_dir must be set with --instrument_only");
-        exit(1);
-      }
-      boolean instrumentationSuccess = OfflineInstrumentor.instrumentJars(Opt.instrumentOnly.get());
-      if (!instrumentationSuccess) {
-        exit(1);
-      }
-      exit(0);
-    }
-
     Driver.class.getClassLoader().setDefaultAssertionStatus(true);
 
     if (!Opt.autofuzz.get().isEmpty()) {
-      AgentInstaller.install(Opt.hooks.get());
       FuzzTargetHolder.fuzzTarget = FuzzTargetHolder.AUTOFUZZ_FUZZ_TARGET;
       return FuzzTargetRunner.startLibFuzzer(args);
     }
@@ -134,18 +126,8 @@ public class Driver {
       exit(1);
     }
 
-    // The JUnitRunner calls AgentInstaller.install itself after modifying flags affecting the
-    // agent.
-    if (JUnitRunner.isSupported()) {
-      Optional<JUnitRunner> runner = JUnitRunner.create(targetClassName, args);
-      if (runner.isPresent()) {
-        return runner.get().run();
-      }
-    }
-
     // Installing the agent after the following "findFuzzTarget" leads to an asan error
     // in it on "Class.forName(targetClassName)", but only during native fuzzing.
-    AgentInstaller.install(Opt.hooks.get());
     FuzzTargetHolder.fuzzTarget = FuzzTargetFinder.findFuzzTarget(targetClassName);
     return FuzzTargetRunner.startLibFuzzer(args);
   }

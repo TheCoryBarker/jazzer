@@ -22,8 +22,10 @@ import static com.code_intelligence.jazzer.driver.OptParser.stringListSetting;
 import static com.code_intelligence.jazzer.driver.OptParser.stringSetting;
 import static com.code_intelligence.jazzer.driver.OptParser.uint64Setting;
 import static java.lang.System.exit;
+import static java.util.stream.Collectors.toList;
 
 import com.code_intelligence.jazzer.utils.Log;
+import java.util.AbstractMap.SimpleImmutableEntry;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -182,5 +184,30 @@ public final class Opt {
       Log.println("Jazzer v" + JAZZER_VERSION);
       exit(0);
     }
+  }
+
+  public static SimpleImmutableEntry<String, String> parseSingleArg(String arg) {
+    String[] nameAndValue = arg.split("=", 2);
+    if (nameAndValue.length == 2) {
+      // Example: --keep_going=10 --> (keep_going, 10)
+      return new SimpleImmutableEntry<>(nameAndValue[0], nameAndValue[1]);
+    } else if (nameAndValue[0].startsWith("no")) {
+      // Example: --nohooks --> (hooks, "false")
+      return new SimpleImmutableEntry<>(nameAndValue[0].substring("no".length()), "false");
+    } else {
+      // Example: --dedup --> (dedup, "true")
+      return new SimpleImmutableEntry<>(nameAndValue[0], "true");
+    }
+  }
+
+  public static List<Map.Entry<String, String>> parseJazzerArgs(List<String> args) {
+    return args.stream()
+        .filter(arg -> arg.startsWith("--"))
+        .map(arg -> arg.substring("--".length()))
+        // Filter out "--", which can be used to declare that all further arguments aren't libFuzzer
+        // arguments.
+        .filter(arg -> !arg.isEmpty())
+        .map(Opt::parseSingleArg)
+        .collect(toList());
   }
 }

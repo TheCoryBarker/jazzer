@@ -15,7 +15,6 @@
 package com.code_intelligence.jazzer.agent;
 
 import static com.code_intelligence.jazzer.agent.AgentUtils.extractBootstrapJar;
-import static com.code_intelligence.jazzer.runtime.Constants.IS_ANDROID;
 
 import java.lang.instrument.Instrumentation;
 import java.lang.reflect.InvocationTargetException;
@@ -37,15 +36,12 @@ public class AgentInstaller {
       return;
     }
 
-    if (IS_ANDROID) {
-      return;
-    }
-
     Instrumentation instrumentation = ByteBuddyAgent.install();
     instrumentation.appendToBootstrapClassLoaderSearch(extractBootstrapJar());
     if (!enableAgent) {
       return;
     }
+
     try {
       Class<?> agent = Class.forName("com.code_intelligence.jazzer.agent.Agent");
       Method install = agent.getMethod("install", Instrumentation.class);

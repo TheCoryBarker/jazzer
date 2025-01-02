@@ -33,8 +33,7 @@ filegroup(
 
 http_archive(
     name = "com_grail_bazel_toolchain",
-    sha256 = "da607faed78c4cb5a5637ef74a36fdd2286f85ca5192222c4664efec2d529bb8",
-    strip_prefix = "bazel-toolchain-0.6.3",
+    strip_prefix = "toolchains_llvm-0.6.3",
     urls = ["https://github.com/grailbio/bazel-toolchain/archive/refs/tags/0.6.3.tar.gz"],
 )
 
@@ -77,18 +76,21 @@ http_archive(
 )
 
 http_archive(
-    name = "build_bazel_rules_android",
-    sha256 = "cd06d15dd8bb59926e4d65f9003bfc20f9da4b2519985c27e190cddc8b7a7806",
-    strip_prefix = "rules_android-0.1.1",
-    urls = ["https://github.com/bazelbuild/rules_android/archive/v0.1.1.zip"],
+    name = "rules_android",
+    sha256 = "af84b69ab3d16dd1a41056286e6511f147a94ccea995603e13e934c915c1631c",
+    strip_prefix = "rules_android-0.6.0",
+    url = "https://github.com/bazelbuild/rules_android/releases/download/v0.6.0/rules_android-v0.6.0.tar.gz",
 )
 
 http_archive(
     name = "rules_android_ndk",
-    sha256 = "73eac2cf5f2fd009e8fb197346a2ca39f320b786985658de63a1dff0f12c53d5",
-    strip_prefix = "rules_android_ndk-72ca32741f27c3de69fdcb7a1aaf3ca59919ad8c",
-    url = "https://github.com/bazelbuild/rules_android_ndk/archive/72ca32741f27c3de69fdcb7a1aaf3ca59919ad8c.zip",
+    sha256 = "65aedff0cd728bee394f6fb8e65ba39c4c5efb11b29b766356922d4a74c623f5",
+    strip_prefix = "rules_android_ndk-0.1.2",
+    url = "https://github.com/bazelbuild/rules_android_ndk/releases/download/v0.1.2/rules_android_ndk-v0.1.2.tar.gz",
 )
+load("@rules_android_ndk//:rules.bzl", "android_ndk_repository")
+android_ndk_repository(name = "androidndk")
+register_toolchains("@androidndk//:all")
 
 http_file(
     name = "genhtml",

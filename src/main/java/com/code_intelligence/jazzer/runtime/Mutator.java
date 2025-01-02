@@ -24,7 +24,7 @@ public final class Mutator {
 
   static {
     if (!SHOULD_MOCK) {
-      RulesJni.loadLibrary("jazzer_driver", "/com/code_intelligence/jazzer/driver");
+      System.loadLibrary("jazzer_driver");
     }
   }
 

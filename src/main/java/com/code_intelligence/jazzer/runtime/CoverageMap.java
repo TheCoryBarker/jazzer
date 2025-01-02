@@ -32,7 +32,7 @@ import sun.misc.Unsafe;
  */
 final public class CoverageMap {
   static {
-    RulesJni.loadLibrary("jazzer_driver", "/com/code_intelligence/jazzer/driver");
+    System.loadLibrary("jazzer_driver");
   }
 
   private static final String ENV_MAX_NUM_COUNTERS = "JAZZER_MAX_NUM_COUNTERS";
@@ -49,7 +49,7 @@ final public class CoverageMap {
   static {
     try {
       LOG = Class.forName(
-          "com.code_intelligence.jazzer.utils.Log", false, ClassLoader.getSystemClassLoader());
+          "com.code_intelligence.jazzer.utils.Log", false, CoverageMap.class.getClassLoader());
       LOG_INFO = MethodHandles.lookup().findStatic(
           LOG, "info", MethodType.methodType(void.class, String.class));
       LOG_ERROR = MethodHandles.lookup().findStatic(
