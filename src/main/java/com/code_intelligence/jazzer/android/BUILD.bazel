@@ -76,6 +76,7 @@ java_binary (
         "//src/main/java/com/code_intelligence/jazzer/utils:log",
         "//third_party/android:local_r8",
         "//src/main/java/com/code_intelligence/jazzer/android:instrumentation_config",
+        "//src/main/java/com/code_intelligence/jazzer/utils:zip_utils",
     ],
 )
 

@@ -21,6 +21,7 @@ import static java.lang.System.exit;
 import main.java.com.code_intelligence.jazzer.android.InstrumentationConfig;
 
 import com.code_intelligence.jazzer.driver.OfflineInstrumentor;
+import com.code_intelligence.jazzer.utils.ZipUtils;
 import com.code_intelligence.jazzer.driver.Opt;
 import java.io.File;
 import java.io.FileInputStream;
@@ -81,7 +82,20 @@ public class R8Wrapper {
         exit(1);
       }
 
-      main.invokeExact(args);
+      // extracting tha jazzer_android.jar and get the jazzer_bootstrap.jar file
+      File jazzerForAndroid =
+      ZipUtils.extractFileFromJar("/com/code_intelligence/jazzer/android/jazzer_android.jar");
+
+      File bootstrapJar = Files.createTempFile("jazzer_bootstrap", ".jar").toFile();
+      ZipUtils.extractFileFromJar(jazzerForAndroid.getPath(), "com/code_intelligence/jazzer/runtime/jazzer_bootstrap.jar", bootstrapJar.getPath());
+      bootstrapJar.deleteOnExit();
+
+      String[] newArgs = new String[args.length + 2];
+      System.arraycopy(args, 0, newArgs, 0, args.length);
+      newArgs[args.length] = "-libraryjars";
+      newArgs[args.length + 1] = bootstrapJar.getAbsolutePath();
+      
+      main.invokeExact(newArgs);
       return;
     } catch (ClassNotFoundException cnfe) {
       // This is ok, we wouldn't expect this class to be found outside of AOSP
