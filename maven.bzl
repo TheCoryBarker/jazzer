@@ -21,6 +21,7 @@ JAZZER_JUNIT_COORDINATES = "com.code-intelligence:jazzer-junit:%s" % JAZZER_VERS
 
 # keep sorted
 MAVEN_ARTIFACTS = [
+    "com.google.code.gson:gson:2.8.6",
     "org.junit.jupiter:junit-jupiter-api:5.8.2",
     "org.junit.jupiter:junit-jupiter-engine:5.8.2",
     "org.junit.jupiter:junit-jupiter-params:5.8.2",
@@ -41,7 +42,6 @@ TEST_MAVEN_ARTIFACTS = [
         "com.fasterxml.jackson.core:jackson-core:2.12.1",
         "com.fasterxml.jackson.core:jackson-databind:2.12.1",
         "com.fasterxml.jackson.dataformat:jackson-dataformat-cbor:2.12.1",
-        "com.google.code.gson:gson:2.8.6",
         "com.google.truth.extensions:truth-java8-extension:1.1.3",
         "com.google.truth.extensions:truth-liteproto-extension:1.1.3",
         "com.google.truth.extensions:truth-proto-extension:1.1.3",
