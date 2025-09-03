@@ -23,6 +23,7 @@ import main.java.com.code_intelligence.jazzer.android.InstrumentationConfig;
 import com.code_intelligence.jazzer.driver.OfflineInstrumentor;
 import com.code_intelligence.jazzer.driver.Opt;
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.lang.ClassNotFoundException;
@@ -38,18 +39,22 @@ import java.util.logging.Logger;
 public class R8Wrapper {
   private static final Logger logger = Logger.getLogger(R8Wrapper.class.getName());
 
+  // Path to the instrumentation config file on the host.
+  // It is relative to the current working directory.
+  private static final String CONFIG_FILE_PATH = "prebuilts/jazzer/jazzer_instrumentation_config.json";
+  private static File customHooksJar;
+
   private static void setOptions() throws Exception {
     List<String> jazzerOpts = new ArrayList<>();
     // default config object will have all the default hooks disabled
     InstrumentationConfig config = new InstrumentationConfig();
 
-    InputStream input = R8Wrapper.class
-        .getClassLoader()
-        .getResourceAsStream("com/code_intelligence/jazzer/android/jazzer_instrumentation_config.json");
+    File configFile = new File(CONFIG_FILE_PATH);
 
-    if (input != null) {
-      try (InputStream in = input) {
-        config.updateFromJson(in);
+    if (configFile.exists()) {
+      try (FileInputStream fis = new FileInputStream(configFile)) {
+        config.updateFromJson(fis);
+        customHooksJar = config.getCustomHooksJar();
       }
     } else {
       logger.info("No instrumentation config found — using default config.");
@@ -71,7 +76,7 @@ public class R8Wrapper {
 
       // found com.android.tools.r8warpper.R8Wrapper
       // don't add native libs, we are in AOSP and Soong has special code for this
-      boolean instrumentationSuccess = OfflineInstrumentor.instrumentJars(jarfiles, false);
+      boolean instrumentationSuccess = OfflineInstrumentor.instrumentJars(jarfiles, false, customHooksJar);
       if (!instrumentationSuccess) {
         exit(1);
       }

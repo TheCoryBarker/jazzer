@@ -23,6 +23,7 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -35,6 +36,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.jar.JarFile;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 
@@ -61,9 +63,12 @@ import java.util.stream.Collectors;
  *       "com.code_intelligence.jazzer.sanitizers.SqlInjection"
  *     ]
  *   },
- *   "custom_hooks": [
- *     "com.example.ExampleFuzzerHook"
- *   ]
+ *   "custom_hooks": {
+ *     "custom_hooks_classes": [
+ *       "com.code_intelligence.jazzer.hooks.ExampleFuzzerHooks"
+ *      ],
+ *     "custom_hooks_jar_path": "prebuilts/jazzer/libcustom_hooks.jar"
+ *   }
  * }
  *
  * Supplying this JSON configuration file is optional. If the file is not provided, all hooks
@@ -89,10 +94,18 @@ import java.util.stream.Collectors;
  * "enabled_hooks" is used, only the listed hooks will be enabled. Hooks must be written as
  * fully-qualified Java class names.
  *
- * ###3. `custom_hooks`
- * This array allows additional fully-qualified hook class names to be listed
- * outside the predefined set. Currently, this feature is not supported at runtime, but
- * support is planned for future versions.
+ * ### 3. `custom_hooks`
+ * This object allows users to define additional sanitizer hooks externally.
+ * It contains:
+ *   - `custom_hooks_classes`: an array of fully-qualified hook class names 
+ *      that should be activated during instrumentation and runtime.
+ *   - `custom_hooks_jar_path`: a path to the precompiled hooks JAR that contains 
+ *      these classes. This can be either an absolute path or a path relative to 
+ *      the current working directory. The JAR will be added to the bootstrap 
+ *      classpath to ensure proper visibility.
+ *
+ * Together, these fields enable integrating custom hooks without rebuilding 
+ * Jazzer itself. If omitted, no external hooks are loaded.
  */
 public class InstrumentationConfig {
 
@@ -101,6 +114,8 @@ public class InstrumentationConfig {
     private final String JAZZER_HOOKS = "jazzer_hooks";
     private final String INSTRUMENTATION_FILTERS = "instrumentation_filters";
     private final String CUSTOM_HOOKS = "custom_hooks";
+    private final String CUSTOM_HOOKS_CLASSES = "custom_hooks_classes";
+    private final String CUSTOM_HOOKS_JAR_PATH = "custom_hooks_jar_path";
     private final String INCLUDE_FILTER = "include_filter";
     private final String EXCLUDE_FILTER = "exclude_filter";
     private final String DISABLED_HOOKS = "disabled_hooks";
@@ -109,8 +124,11 @@ public class InstrumentationConfig {
     private final Map<String, Boolean> hookStates = new HashMap<>();
     private final List<String> includeFilter = new ArrayList<>();
     private final List<String> excludeFilter = new ArrayList<>();
+    private final List<String> customHooksClasses = new ArrayList<>();
     private final Path dumpClassesDir;
 
+    private File customHooksJar;
+    
     public InstrumentationConfig() {
         // Disable all the hooks by default
         for (String hook : Constants.SANITIZER_HOOK_NAMES) {
@@ -137,7 +155,9 @@ public class InstrumentationConfig {
                         parseInstrumentationFilter(json.getAsJsonObject(key));
                         break;
                     case CUSTOM_HOOKS:
-                        parseCustomHooks(json.getAsJsonArray(key));
+                        JsonObject hooksObj = json.getAsJsonObject(key);
+                        parseCustomHooksJarPath(hooksObj);
+                        parseCustomHooksClasses(hooksObj);
                         break;
                     default:
                         logger.warning("Unsupported top-level config entry: " + key);
@@ -160,7 +180,18 @@ public class InstrumentationConfig {
         addOptionIfNotEmpty(disabledHooks, "--disabled_hooks=", jazzerOpts);
         addOptionIfNotEmpty(includeFilter, "--instrumentation_includes=", jazzerOpts);
         addOptionIfNotEmpty(excludeFilter, "--instrumentation_excludes=", jazzerOpts);
+
+        if(customHooksJar != null){
+            addOptionIfNotEmpty(customHooksClasses, "--custom_hooks=", jazzerOpts);
+        }
         jazzerOpts.add("--dump_classes_dir=" + dumpClassesDir.toString());
+    }
+    
+    public File getCustomHooksJar() {
+        if(customHooksJar == null){
+            logger.warning("custom hooks jar has not provided.");
+        }
+        return customHooksJar;
     }
 
     private void parseJazzerHooks(JsonObject hooksObj) {
@@ -209,9 +240,34 @@ public class InstrumentationConfig {
         }
     }
 
-    private void parseCustomHooks(JsonArray hooksArray) {
-        // TODO: Add support for custom_hooks
-        logger.warning("custom_hooks option is not enabled yet.");
+    private void parseCustomHooksClasses(JsonObject hooksObj) {
+        if (hooksObj.has(CUSTOM_HOOKS_CLASSES)) {
+            JsonArray hooksArray = hooksObj.getAsJsonArray(CUSTOM_HOOKS_CLASSES);
+            for (JsonElement el : hooksArray) {
+                customHooksClasses.add(el.getAsString());
+            }
+        } else {
+            logger.warning("Expected 'custom_hooks_classes' entry not found in custom_hooks config.");
+        }
+    }
+
+    private void parseCustomHooksJarPath(JsonObject hooksObj) {
+        if (hooksObj.has(CUSTOM_HOOKS_JAR_PATH)) {
+            String customHooksJarPath = hooksObj.get(CUSTOM_HOOKS_JAR_PATH).getAsString();
+            if (customHooksJarPath != null && !customHooksJarPath.isBlank()) {
+                customHooksJar = new File(customHooksJarPath);
+                if (!customHooksJar.exists()) {
+                    logger.warning("Custom hooks jar not found at: " + customHooksJarPath 
+                        + ". Continuing without custom hooks.");
+                    customHooksJar = null;
+                    return;
+                }
+            } else {
+                logger.warning("No custom hooks jar path provided.");
+            }
+        } else {
+            logger.warning("Expected 'custom_hooks_jar_path' entry not found in custom_hooks config.");
+        }
     }
 
     private void addOptionIfNotEmpty(List<String> list, String flag, List<String> jazzerOpts) {

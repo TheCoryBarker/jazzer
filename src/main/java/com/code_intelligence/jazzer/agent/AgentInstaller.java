@@ -16,21 +16,28 @@ package com.code_intelligence.jazzer.agent;
 
 import static com.code_intelligence.jazzer.agent.AgentUtils.extractBootstrapJar;
 
+import java.io.File;
+import java.io.IOException;
 import java.lang.instrument.Instrumentation;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.jar.JarFile;
+import java.util.logging.Logger;
+
+import com.code_intelligence.jazzer.r8.R8Wrapper;
+
 import net.bytebuddy.agent.ByteBuddyAgent;
 
 public class AgentInstaller {
   private static final AtomicBoolean hasBeenInstalled = new AtomicBoolean();
-
+  private static final Logger logger = Logger.getLogger(AgentInstaller.class.getName());
   /**
    * Appends the parts of Jazzer that have to be visible to all classes, including those in the Java
    * standard library, to the bootstrap class loader path. Additionally, if enableAgent is true,
    * also enables the Jazzer agent that instruments classes for fuzzing.
    */
-  public static void install(boolean enableAgent) {
+  public static void install(boolean enableAgent, File customHooksJar) {
     // Only install the agent once.
     if (!hasBeenInstalled.compareAndSet(false, true)) {
       return;
@@ -38,6 +45,18 @@ public class AgentInstaller {
 
     Instrumentation instrumentation = ByteBuddyAgent.install();
     instrumentation.appendToBootstrapClassLoaderSearch(extractBootstrapJar());
+
+    if (customHooksJar != null) {
+      try {
+        instrumentation.appendToBootstrapClassLoaderSearch(new JarFile(customHooksJar));
+        logger.info("Added external hooks jar to bootstrap: " + customHooksJar.getAbsolutePath());
+      } catch (IOException e) {
+        logger.warning("Failed to add external hooks jar due to error: " + e);
+      }
+    } else {
+      logger.warning("Jar for adding custom hooks is not present to add in bootstrap class loader search.");
+    }
+
     if (!enableAgent) {
       return;
     }

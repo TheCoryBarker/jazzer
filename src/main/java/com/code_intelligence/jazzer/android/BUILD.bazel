@@ -67,7 +67,6 @@ java_binary (
     name = "r8",
     resources = [
         ":jazzer_jar",
-        "jazzer_instrumentation_config.json",
     ],
     main_class = "com.code_intelligence.jazzer.r8.R8Wrapper",
     srcs = ["R8Wrapper.java"],
