@@ -49,9 +49,9 @@ import java.util.jar.Manifest;
 import java.util.zip.ZipOutputStream;
 
 public class OfflineInstrumentor {
-  public static boolean instrumentJars(List<String> jarList, boolean addNativeLibs)
+  public static boolean instrumentJars(List<String> jarList, boolean addNativeLibs, File customHooksJar)
       throws IOException {
-    AgentInstaller.install(true);
+    AgentInstaller.install(true, customHooksJar);
     // TODO: as a working proof of concept, this has only been tested on one jar.
     // This should be fine for most scenarios since this should be happening directly
     // before dexing.

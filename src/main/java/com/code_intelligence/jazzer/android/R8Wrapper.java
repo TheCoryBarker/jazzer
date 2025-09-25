@@ -18,30 +18,49 @@ package com.code_intelligence.jazzer.r8;
 
 import static java.lang.System.exit;
 
+import main.java.com.code_intelligence.jazzer.android.InstrumentationConfig;
+
 import com.code_intelligence.jazzer.driver.OfflineInstrumentor;
 import com.code_intelligence.jazzer.driver.Opt;
-import com.code_intelligence.jazzer.utils.Log;
 import java.io.File;
-import java.io.FileWriter;
+import java.io.FileInputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.lang.ClassNotFoundException;
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.MethodType;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.nio.file.attribute.FileAttribute;
-import java.nio.file.attribute.PosixFilePermissions;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
+import java.util.logging.Logger;
 
 public class R8Wrapper {
-  private static void setOptions() throws IOException {
-    Path dumpClassesDir = Files.createTempDirectory("instrumented_classes");
-    List<String> jazzerOpts = Arrays.asList("--dump_classes_dir=" + dumpClassesDir.toString());
+  private static final Logger logger = Logger.getLogger(R8Wrapper.class.getName());
 
+  // Path to the instrumentation config file on the host.
+  // It is relative to the current working directory.
+  private static final String CONFIG_FILE_PATH = "prebuilts/jazzer/jazzer_instrumentation_config.json";
+  private static File customHooksJar;
+
+  private static void setOptions() throws Exception {
+    List<String> jazzerOpts = new ArrayList<>();
+    // default config object will have all the default hooks disabled
+    InstrumentationConfig config = new InstrumentationConfig();
+
+    File configFile = new File(CONFIG_FILE_PATH);
+
+    if (configFile.exists()) {
+      try (FileInputStream fis = new FileInputStream(configFile)) {
+        config.updateFromJson(fis);
+        customHooksJar = config.getCustomHooksJar();
+      }
+    } else {
+      logger.info("No instrumentation config found — using default config.");
+    }
+
+    config.addToJazzerOpts(jazzerOpts);
     Opt.registerAndValidateCommandLineArgs(Opt.parseJazzerArgs(jazzerOpts));
   }
 
@@ -57,7 +76,7 @@ public class R8Wrapper {
 
       // found com.android.tools.r8warpper.R8Wrapper
       // don't add native libs, we are in AOSP and Soong has special code for this
-      boolean instrumentationSuccess = OfflineInstrumentor.instrumentJars(jarfiles, false);
+      boolean instrumentationSuccess = OfflineInstrumentor.instrumentJars(jarfiles, false, customHooksJar);
       if (!instrumentationSuccess) {
         exit(1);
       }
@@ -66,12 +85,11 @@ public class R8Wrapper {
       return;
     } catch (ClassNotFoundException cnfe) {
       // This is ok, we wouldn't expect this class to be found outside of AOSP
-      System.out.println("No wrapper function found");
+      logger.warning("No wrapper function found");
     }
 
     try {
-      Class<?> r8 =
-          Class.forName("com.android.tools.r8.R8", false, R8Wrapper.class.getClassLoader());
+      Class<?> r8 = Class.forName("com.android.tools.r8.R8", false, R8Wrapper.class.getClassLoader());
       MethodHandle main = MethodHandles.lookup().findStatic(
           r8, "main", MethodType.methodType(void.class, String[].class));
 
@@ -84,7 +102,7 @@ public class R8Wrapper {
 
       main.invokeExact(args);
     } catch (Exception e) {
-      System.out.println(e);
+      logger.warning(e);
     }
   }
 

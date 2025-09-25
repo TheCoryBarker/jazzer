@@ -75,6 +75,16 @@ java_binary (
         "//src/main/java/com/code_intelligence/jazzer/driver:opt",
         "//src/main/java/com/code_intelligence/jazzer/utils:log",
         "//third_party/android:local_r8",
+        "//src/main/java/com/code_intelligence/jazzer/android:instrumentation_config",
+    ],
+)
+
+java_library(
+    name = "instrumentation_config",
+    srcs = ["InstrumentationConfig.java"],
+    deps = [
+        "@maven//:com_google_code_gson_gson",
+        "//sanitizers/src/main/java/com/code_intelligence/jazzer/sanitizers:constants",
     ],
 )
 
