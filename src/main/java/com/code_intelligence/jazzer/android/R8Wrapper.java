@@ -18,7 +18,7 @@ package com.code_intelligence.jazzer.r8;
 
 import static java.lang.System.exit;
 
-import main.java.com.code_intelligence.jazzer.android.InstrumentationConfig;
+import com.code_intelligence.jazzer.android.InstrumentationConfig;
 
 import com.code_intelligence.jazzer.driver.OfflineInstrumentor;
 import com.code_intelligence.jazzer.utils.ZipUtils;
@@ -109,14 +109,14 @@ public class R8Wrapper {
 
       // Calling normal R8 functions.
       // TODO: this path needs more testing
-      boolean instrumentationSuccess = OfflineInstrumentor.instrumentJars(jarfiles, true);
+      boolean instrumentationSuccess = OfflineInstrumentor.instrumentJars(jarfiles, true, customHooksJar);
       if (!instrumentationSuccess) {
         exit(1);
       }
 
       main.invokeExact(args);
     } catch (Exception e) {
-      logger.warning(e);
+      logger.warning(e.toString());
     }
   }
 
