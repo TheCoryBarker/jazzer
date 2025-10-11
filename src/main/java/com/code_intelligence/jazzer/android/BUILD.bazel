@@ -2,6 +2,7 @@ load("//bazel:compat.bzl", "ANDROID_ONLY", "SKIP_ON_WINDOWS")
 load("@bazel_skylib//rules:copy_file.bzl", "copy_file")
 load("@rules_pkg//:pkg.bzl", "pkg_tar")
 load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_jar")
+load("@rules_android//rules:rules.bzl", "android_binary", "android_library")
 
 java_library(
     name = "wrapper",
@@ -27,7 +28,6 @@ android_library(
 android_binary(
     name = "jazzer_android",
     manifest = "AndroidManifest.xml",
-    min_sdk_version = 31,
     tags = ["manual"],
     target_compatible_with = SKIP_ON_WINDOWS,
     visibility = ["//visibility:public"],
@@ -65,6 +65,7 @@ copy_file(
 
 java_binary (
     name = "r8",
+    create_executable = False,
     resources = [
         ":jazzer_jar",
     ],

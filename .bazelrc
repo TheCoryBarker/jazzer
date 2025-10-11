@@ -1,3 +1,6 @@
+# Enable Bzlmod for dependency management
+common --enable_bzlmod
+
 # Allow directories as sources.
 startup --host_jvm_args=-DBAZEL_TRACK_SOURCE_DIRECTORIES=1
 build --incompatible_strict_action_env
@@ -11,7 +14,8 @@ common --experimental_merged_skyframe_analysis_execution
 
 # C/C++
 # GCC is supported on a best-effort basis.
-common --repo_env=CC=clang
+common --repo_env=CC=/usr/bin/gcc
+common --repo_env=CXX=/usr/bin/g++
 build --incompatible_enable_cc_toolchain_resolution
 # Required by abseil-cpp.
 build --cxxopt=-std=c++14
@@ -39,7 +43,7 @@ build --experimental_java_classpath=bazel
 # Android
 build --incompatible_enable_android_toolchain_resolution
 build --android_platforms=//:android_arm64
-build:android_arm --java_runtime_version=local_jdk
+build:android_arm --platforms=//:android_arm64
 
 # Windows
 # Only compiles with clang on Windows.

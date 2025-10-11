@@ -25,8 +25,6 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.jar.JarFile;
 import java.util.logging.Logger;
 
-import com.code_intelligence.jazzer.r8.R8Wrapper;
-
 import net.bytebuddy.agent.ByteBuddyAgent;
 
 public class AgentInstaller {

@@ -9,6 +9,10 @@ load("//:init.bzl", "jazzer_init")
 
 jazzer_init()
 
+
+# rules_java, rules_cc, and platforms are now managed by bzlmod in MODULE.bazel
+# for better Android compatibility
+
 http_archive(
     name = "com_google_protobuf",
     patches = ["//third_party:protobuf-disable-layering_check.patch"],
@@ -75,22 +79,8 @@ http_archive(
     url = "https://github.com/bazel-contrib/rules_jvm/releases/download/v0.14.0/rules_jvm-v0.14.0.tar.gz",
 )
 
-http_archive(
-    name = "rules_android",
-    sha256 = "af84b69ab3d16dd1a41056286e6511f147a94ccea995603e13e934c915c1631c",
-    strip_prefix = "rules_android-0.6.0",
-    url = "https://github.com/bazelbuild/rules_android/releases/download/v0.6.0/rules_android-v0.6.0.tar.gz",
-)
-
-http_archive(
-    name = "rules_android_ndk",
-    sha256 = "65aedff0cd728bee394f6fb8e65ba39c4c5efb11b29b766356922d4a74c623f5",
-    strip_prefix = "rules_android_ndk-0.1.2",
-    url = "https://github.com/bazelbuild/rules_android_ndk/releases/download/v0.1.2/rules_android_ndk-v0.1.2.tar.gz",
-)
-load("@rules_android_ndk//:rules.bzl", "android_ndk_repository")
-android_ndk_repository(name = "androidndk")
-register_toolchains("@androidndk//:all")
+# Android rules (rules_android and rules_android_ndk) are now managed by bzlmod
+# in MODULE.bazel for better compatibility with Bazel 7.4.0
 
 http_file(
     name = "genhtml",
@@ -156,14 +146,12 @@ maven_install(
     fail_if_repin_required = True,
     maven_install_json = "//:maven_install.json",
     override_targets = {
-        "org.jetbrains.kotlin:kotlin-reflect": "@com_github_jetbrains_kotlin//:kotlin-reflect",
-        "org.jetbrains.kotlin:kotlin-stdlib": "@com_github_jetbrains_kotlin//:kotlin-stdlib",
         "com.google.errorprone:error_prone_annotations": "@com_google_errorprone_error_prone_annotations//jar",
     },
     repositories = [
         "https://repo1.maven.org/maven2",
     ],
-    strict_visibility = True,
+    strict_visibility = False,
 )
 
 load("@maven//:defs.bzl", "pinned_maven_install")
@@ -192,13 +180,12 @@ http_file(
     urls = ["https://repo1.maven.org/maven2/org/jacoco/org.jacoco.cli/0.8.8/org.jacoco.cli-0.8.8-nodeps.jar"],
 )
 
-load("//third_party/android:android_configure.bzl", "android_configure")
-
-android_configure(name = "configure_android_rules")
-
-load("@configure_android_rules//:android_configure.bzl", "android_workspace")
-
-android_workspace()
+# Android configuration is now handled by bzlmod in MODULE.bazel
+# Commenting out WORKSPACE-based android_configure for Bazel 7.4.0 compatibility
+# load("//third_party/android:android_configure.bzl", "android_configure")
+# android_configure(name = "configure_android_rules")
+# load("@configure_android_rules//:android_configure.bzl", "android_workspace")
+# android_workspace()
 
 http_archive(
     name = "buildifier_prebuilt",

@@ -22,6 +22,8 @@ JAZZER_JUNIT_COORDINATES = "com.code-intelligence:jazzer-junit:%s" % JAZZER_VERS
 # keep sorted
 MAVEN_ARTIFACTS = [
     "com.google.code.gson:gson:2.8.6",
+    "org.jetbrains.kotlin:kotlin-reflect:1.9.22",
+    "org.jetbrains.kotlin:kotlin-stdlib:1.9.22",
     "org.junit.jupiter:junit-jupiter-api:5.8.2",
     "org.junit.jupiter:junit-jupiter-engine:5.8.2",
     "org.junit.jupiter:junit-jupiter-params:5.8.2",
