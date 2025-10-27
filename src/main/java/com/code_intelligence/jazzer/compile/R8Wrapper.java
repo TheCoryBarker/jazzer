@@ -18,7 +18,7 @@ package com.code_intelligence.jazzer.r8;
 
 import static java.lang.System.exit;
 
-import com.code_intelligence.jazzer.driver.OfflineInstrumentor;
+import com.code_intelligence.jazzer.driver.BuildInstrumentor;
 import com.code_intelligence.jazzer.driver.Opt;
 import com.code_intelligence.jazzer.utils.Log;
 import java.io.File;
@@ -56,7 +56,7 @@ public class R8Wrapper {
 
       // found com.android.tools.r8warpper.R8Wrapper
       // don't add native libs, we are in AOSP and Soong has special code for this
-      boolean instrumentationSuccess = OfflineInstrumentor.instrumentJars(jarfiles, false);
+      boolean instrumentationSuccess = BuildInstrumentor.instrumentJars(jarfiles, false);
       if (!instrumentationSuccess) {
         exit(1);
       }
@@ -78,7 +78,7 @@ public class R8Wrapper {
 
       // Calling normal R8 functions.
       // TODO: this path needs more testing
-      boolean instrumentationSuccess = OfflineInstrumentor.instrumentJars(jarfiles, true);
+      boolean instrumentationSuccess = BuildInstrumentor.instrumentJars(jarfiles, true);
       if (!instrumentationSuccess) {
         exit(1);
       }

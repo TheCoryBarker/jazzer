@@ -1,0 +1,4 @@
+
+-keep class com.code_intelligence.** { *; }
+
+-keep class com.app.** { *; }

@@ -19,7 +19,6 @@ package com.code_intelligence.jazzer.driver
 import com.code_intelligence.jazzer.api.FuzzerSecurityIssueLow
 import com.code_intelligence.jazzer.runtime.Constants.IS_ANDROID
 import com.code_intelligence.jazzer.utils.Log
-import java.lang.management.ManagementFactory
 import java.nio.ByteBuffer
 import java.security.MessageDigest
 
@@ -97,20 +96,12 @@ fun preprocessThrowable(throwable: Throwable): Throwable = when (throwable) {
         val bottomFramesWithoutRepetition = throwable.stackTrace.takeLastWhile { frame ->
             (frame !in observedFrames).also { observedFrames.add(frame) }
         }
-        var securityIssueMessage = "Stack overflow"
-        if (!IS_ANDROID) {
-            securityIssueMessage = "$securityIssueMessage (use '${getReproducingXssArg()}' to reproduce)"
-        }
-        FuzzerSecurityIssueLow(securityIssueMessage, throwable).apply {
+        FuzzerSecurityIssueLow("Stack overflow", throwable).apply {
             stackTrace = bottomFramesWithoutRepetition.toTypedArray()
         }
     }
     is OutOfMemoryError -> {
-        var securityIssueMessage = "Out of memory"
-        if (!IS_ANDROID) {
-            securityIssueMessage = "$securityIssueMessage (use '${getReproducingXmxArg()}' to reproduce)"
-        }
-        stripOwnStackTrace(FuzzerSecurityIssueLow(securityIssueMessage, throwable))
+        stripOwnStackTrace(FuzzerSecurityIssueLow("Out of memory", throwable))
     }
     is VirtualMachineError -> stripOwnStackTrace(FuzzerSecurityIssueLow(throwable))
     else -> throwable
@@ -135,52 +126,6 @@ private fun stripOwnStackTrace(throwable: Throwable) = throwable.apply {
     stackTrace = emptyArray()
 }
 
-/**
- * Returns a valid `-Xmx` JVM argument that sets the stack size to a value with which [StackOverflowError] findings can
- * be reproduced, assuming the environment is sufficiently similar (e.g. OS and JVM version).
- */
-private fun getReproducingXmxArg(): String? {
-    val maxHeapSizeInMegaBytes = (getNumericFinalFlagValue("MaxHeapSize") ?: return null) shr 20
-    val conservativeMaxHeapSizeInMegaBytes = (maxHeapSizeInMegaBytes * 0.9).toInt()
-    return "-Xmx${conservativeMaxHeapSizeInMegaBytes}m"
-}
-
-/**
- * Returns a valid `-Xss` JVM argument that sets the stack size to a value with which [StackOverflowError] findings can
- * be reproduced, assuming the environment is sufficiently similar (e.g. OS and JVM version).
- */
-private fun getReproducingXssArg(): String? {
-    val threadStackSizeInKiloBytes = getNumericFinalFlagValue("ThreadStackSize") ?: return null
-    val conservativeThreadStackSizeInKiloBytes = (threadStackSizeInKiloBytes * 0.9).toInt()
-    return "-Xss${conservativeThreadStackSizeInKiloBytes}k"
-}
-
-private fun getNumericFinalFlagValue(arg: String): Long? {
-    val argPattern = "$arg\\D*(\\d*)".toRegex()
-    return argPattern.find(javaFullFinalFlags ?: return null)?.groupValues?.get(1)?.toLongOrNull()
-}
-
-private val javaFullFinalFlags by lazy {
-    readJavaFullFinalFlags()
-}
-
-private fun readJavaFullFinalFlags(): String? {
-    val javaHome = System.getProperty("java.home") ?: return null
-    val javaBinary = "$javaHome/bin/java"
-    val currentJvmArgs = ManagementFactory.getRuntimeMXBean().inputArguments
-    val javaPrintFlagsProcess = ProcessBuilder(
-        listOf(javaBinary) + currentJvmArgs + listOf(
-            "-XX:+PrintFlagsFinal",
-            "-version",
-        ),
-    ).start()
-    return javaPrintFlagsProcess.inputStream.bufferedReader().useLines { lineSequence ->
-        lineSequence
-            .filter { it.contains("ThreadStackSize") || it.contains("MaxHeapSize") }
-            .joinToString("\n")
-    }
-}
-
 fun dumpAllStackTraces() {
     Log.println("\nStack traces of all JVM threads:")
     for ((thread, stack) in Thread.getAllStackTraces()) {
@@ -200,16 +145,4 @@ fun dumpAllStackTraces() {
             }
         Log.println("")
     }
-
-    if (IS_ANDROID) {
-        // ManagementFactory is not supported on Android
-        return
-    }
-
-    Log.println("Garbage collector stats:")
-    Log.println(
-        ManagementFactory.getGarbageCollectorMXBeans().joinToString("\n", "\n", "\n") {
-            "${it.name}: ${it.collectionCount} collections took ${it.collectionTime}ms"
-        },
-    )
 }

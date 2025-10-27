@@ -44,6 +44,9 @@ build --experimental_java_classpath=bazel
 build --incompatible_enable_android_toolchain_resolution
 build --android_platforms=//:android_arm64
 build:android_arm --platforms=//:android_arm64
+build:android_arm --copt=-fPIC
+build:android_arm --copt=-ftls-model=global-dynamic
+build:android_arm --copt=-femulated-tls
 
 # Windows
 # Only compiles with clang on Windows.

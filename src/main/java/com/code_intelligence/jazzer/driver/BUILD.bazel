@@ -19,15 +19,14 @@ java_library(
         ":fuzz_target_holder",
         ":fuzz_target_runner",
         ":opt",
-        "//src/main/java/com/code_intelligence/jazzer/driver/junit:junit_runner",
         "//src/main/java/com/code_intelligence/jazzer/runtime:constants",
         "//src/main/java/com/code_intelligence/jazzer/utils:log",
     ],
 )
 
 java_library(
-    name = "offline_instrumentor",
-    srcs = ["OfflineInstrumentor.java"],
+    name = "build_instrumentor",
+    srcs = ["BuildInstrumentor.java"],
     visibility = [
         "//visibility:public",
     ],
@@ -75,7 +74,6 @@ java_library(
     deps = [
         ":opt",
         "//src/main/java/com/code_intelligence/jazzer/api",
-        "//src/main/java/com/code_intelligence/jazzer/autofuzz",
     ],
 )
 
@@ -104,9 +102,6 @@ java_jni_library(
         ":reproducer_template",
         ":signal_handler",
         "//src/main/java/com/code_intelligence/jazzer/api",
-        "//src/main/java/com/code_intelligence/jazzer/autofuzz",
-        "//src/main/java/com/code_intelligence/jazzer/instrumentor",
-        "//src/main/java/com/code_intelligence/jazzer/mutation",
         "//src/main/java/com/code_intelligence/jazzer/runtime:constants",
         "//src/main/java/com/code_intelligence/jazzer/runtime:jazzer_bootstrap_compile_only",
         "//src/main/java/com/code_intelligence/jazzer/utils:log",

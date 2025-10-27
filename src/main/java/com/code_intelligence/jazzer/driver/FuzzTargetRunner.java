@@ -19,16 +19,10 @@ package com.code_intelligence.jazzer.driver;
 import static com.code_intelligence.jazzer.driver.Constants.JAZZER_FINDING_EXIT_CODE;
 import static com.code_intelligence.jazzer.runtime.Constants.IS_ANDROID;
 import static java.lang.System.exit;
-import static java.util.Collections.unmodifiableList;
 import static java.util.stream.Collectors.joining;
 import static java.util.stream.Collectors.toCollection;
-import static java.util.stream.Collectors.toList;
-import static java.util.stream.Stream.concat;
 
 import com.code_intelligence.jazzer.api.FuzzedDataProvider;
-import com.code_intelligence.jazzer.autofuzz.FuzzTarget;
-import com.code_intelligence.jazzer.instrumentor.CoverageRecorder;
-import com.code_intelligence.jazzer.mutation.ArgumentsMutator;
 import com.code_intelligence.jazzer.runtime.FuzzTargetRunnerNatives;
 import com.code_intelligence.jazzer.runtime.JazzerInternal;
 import com.code_intelligence.jazzer.utils.Log;
@@ -40,7 +34,6 @@ import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
-import java.lang.reflect.Modifier;
 import java.math.BigInteger;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
@@ -64,23 +57,6 @@ import sun.misc.Unsafe;
  */
 public final class FuzzTargetRunner {
   static {
-    if (Opt.autofuzz.get().isEmpty()) {
-      if (!Opt.autofuzzIgnore.get().isEmpty()) {
-        Log.error("--autofuzz_ignore requires --autofuzz");
-        exit(1);
-      }
-    } else {
-      if (!Opt.targetClass.get().isEmpty()) {
-        Log.error("--target_class and --autofuzz cannot be specified together");
-        exit(1);
-      }
-      if (!Opt.targetArgs.setIfDefault(unmodifiableList(
-              concat(Stream.of(Opt.autofuzz.get()), Opt.autofuzzIgnore.get().stream())
-                  .collect(toList())))) {
-        Log.error("--target_args and --autofuzz cannot be specified together");
-        exit(1);
-      }
-    }
     // Default to false if hooks is false to mimic the original behavior of the native fuzz target
     // runner, but still support hooks = false && dedup = true.
     Opt.dedup.setIfDefault(Opt.hooks.get());
@@ -101,8 +77,6 @@ public final class FuzzTargetRunner {
   private static final int LIBFUZZER_CONTINUE = 0;
   private static final int LIBFUZZER_RETURN_FROM_DRIVER = -2;
 
-  private static boolean invalidCorpusFileWarningShown = false;
-
   // Keep these options used in runOne (and thus the critical path) in static final fields so that
   // they can be constant-folded by the JIT.
   private static final Set<Long> ignoredTokens = Opt.ignore.get()
@@ -122,7 +96,6 @@ public final class FuzzTargetRunner {
   // Reused in every iteration analogous to JUnit's PER_CLASS lifecycle.
   private static final Object fuzzTargetInstance;
   private static final Method fuzzerTearDown;
-  private static final ArgumentsMutator mutator;
   private static final ReproducerTemplate reproducerTemplate;
   private static Predicate<Throwable> findingHandler;
 
@@ -158,24 +131,6 @@ public final class FuzzTargetRunner {
       throw new IllegalStateException("Not reached");
     }
 
-    if (useExperimentalMutator) {
-      if (Modifier.isStatic(fuzzTarget.method.getModifiers())) {
-        mutator = ArgumentsMutator.forStaticMethodOrThrow(fuzzTarget.method);
-      } else {
-        mutator = ArgumentsMutator.forInstanceMethodOrThrow(fuzzTargetInstance, fuzzTarget.method);
-      }
-      Log.info("Using experimental mutator: " + mutator);
-    } else {
-      mutator = null;
-    }
-
-    if (useHooks) {
-      // libFuzzer will clear the coverage map after this method returns and keeps no record of the
-      // coverage accumulated so far (e.g. by static initializers). We record it here to keep it
-      // around for JaCoCo coverage reports.
-      CoverageRecorder.updateCoveredIdsWithCoverageMap();
-    }
-
     Runtime.getRuntime().addShutdownHook(new Thread(FuzzTargetRunner::shutdown));
   }
 
@@ -203,41 +158,16 @@ public final class FuzzTargetRunner {
    */
   private static int runOne(long dataPtr, int dataLength) {
     Throwable finding = null;
-    byte[] data;
     Object argument;
-    if (useExperimentalMutator) {
-      // TODO: Instead of copying the native data and then reading it in, consider the following
-      //  optimizations if they turn out to be worthwhile in benchmarks:
-      //  1. Let libFuzzer pass in a null pointer if the byte array hasn't changed since the last
-      //     call to our custom mutator and skip the read entirely.
-      //  2. Implement a InputStream backed by Unsafe to avoid the copyToArray overhead.
-      byte[] buf = copyToArray(dataPtr, dataLength);
-      boolean readExactly = mutator.read(new ByteArrayInputStream(buf));
-
-      // All inputs constructed by the mutator framework can be read exactly, existing corpus files
-      // may not be valid for the current fuzz target anymore, though. In this case, print a warning
-      // once.
-      if (!(invalidCorpusFileWarningShown || readExactly || isFixedLibFuzzerInput(buf))) {
-        invalidCorpusFileWarningShown = true;
-        Log.warn("Some files in the seed corpus do not match the fuzz target signature. "
-            + "This indicates that they were generated with a different signature and may cause issues reproducing previous findings.");
-      }
-      data = null;
-      argument = null;
-    } else if (useFuzzedDataProvider) {
+    if (useFuzzedDataProvider) {
       fuzzedDataProvider.setNativeData(dataPtr, dataLength);
-      data = null;
       argument = fuzzedDataProvider;
     } else {
-      data = copyToArray(dataPtr, dataLength);
+      byte[] data = copyToArray(dataPtr, dataLength);
       argument = data;
     }
     try {
-      if (useExperimentalMutator) {
-        // No need to detach as we are currently reading in the mutator state from bytes in every
-        // iteration.
-        mutator.invoke(false);
-      } else if (fuzzTargetInstance == null) {
+      if (fuzzTargetInstance == null) {
         fuzzTargetMethod.invoke(argument);
       } else {
         fuzzTargetMethod.invoke(fuzzTargetInstance, argument);
@@ -304,114 +234,39 @@ public final class FuzzTargetRunner {
     // target.
     // It doesn't support @FuzzTest fuzz targets, but these come with an integrated regression test
     // that satisfies the same purpose.
-    // It also doesn't support the experimental mutator yet as that requires implementing Java code
-    // generation for mutators.
-    if (fuzzTargetInstance == null && !useExperimentalMutator) {
+    if (fuzzTargetInstance == null) {
+      byte[] data = useFuzzedDataProvider ? null : (byte[]) argument;
       dumpReproducer(data);
     }
 
     if (!emitDedupToken || Long.compareUnsigned(ignoredTokens.size(), keepGoing) >= 0) {
       // Reached the maximum amount of findings to keep going for, crash after shutdown. We use
       // _Exit rather than System.exit to not trigger libFuzzer's exit handlers.
-      if (!Opt.autofuzz.get().isEmpty() && Opt.dedup.get()) {
-        Log.println("");
-        Log.info(String.format(
-            "To continue fuzzing past this particular finding, rerun with the following additional argument:"
-                + "%n%n    --ignore=%s%n%n"
-                + "To ignore all findings of this kind, rerun with the following additional argument:"
-                + "%n%n    --autofuzz_ignore=%s",
-            ignoredTokens.stream()
-                .map(token -> Long.toUnsignedString(token, 16))
-                .collect(joining(",")),
-            Stream
-                .concat(Opt.autofuzzIgnore.get().stream(), Stream.of(finding.getClass().getName()))
-                .collect(joining(","))));
-      }
       System.exit(JAZZER_FINDING_EXIT_CODE);
       throw new IllegalStateException("Not reached");
     }
     return LIBFUZZER_CONTINUE;
   }
 
-  private static boolean isFixedLibFuzzerInput(byte[] input) {
-    // Detect special libFuzzer inputs which can not be processed by the mutator framework.
-    // libFuzzer always uses an empty input, and one with a single line feed (10) to indicate
-    // end of initial corpus file processing.
-    return input.length == 0 || (input.length == 1 && input[0] == 10);
-  }
-
   // Called via JNI, being passed data from LLVMFuzzerCustomMutator.
+  // Stub implementation - experimental mutator is not supported on Android.
   @SuppressWarnings("unused")
   private static int mutateOne(long data, int size, int maxSize, int seed) {
-    mutate(data, size, seed);
-    return writeToMemory(mutator, data, maxSize);
+    throw new UnsupportedOperationException("Experimental mutator not supported on Android");
   }
-
-  private static void mutate(long data, int size, int seed) {
-    // libFuzzer sends the input "\n" when there are no corpus entries. We use that as a signal to
-    // initialize the mutator instead of just reading that trivial input to produce a more
-    // interesting value.
-    if (size == 1 && UNSAFE.getByte(data) == '\n') {
-      mutator.init(seed);
-    } else {
-      // TODO: See the comment on earlier calls to read for potential optimizations.
-      mutator.read(new ByteArrayInputStream(copyToArray(data, size)));
-      mutator.mutate(seed);
-    }
-  }
-
-  private static long crossOverCount = 0;
 
   // Called via JNI, being passed data from LLVMFuzzerCustomCrossOver.
+  // Stub implementation - experimental mutator is not supported on Android.
   @SuppressWarnings("unused")
   private static int crossOver(
       long data1, int size1, long data2, int size2, long out, int maxOutSize, int seed) {
-    // Custom cross over and custom mutate are the only mutators registered in
-    // libFuzzer, hence cross over is picked as often as mutate, which is way
-    // too frequently. Without custom mutate, cross over would be picked from
-    // the list of default mutators, so ~1/12 of the time. This also seems too
-    // much and is reduced to a configurable frequency, default 1/100, here,
-    // mutate is used in the other cases.
-    if (crossOverFrequency != 0 && crossOverCount++ % crossOverFrequency == 0) {
-      mutator.crossOver(new ByteArrayInputStream(copyToArray(data1, size1)),
-          new ByteArrayInputStream(copyToArray(data2, size2)), seed);
-    } else {
-      mutate(data1, size1, seed);
-    }
-    return writeToMemory(mutator, out, maxOutSize);
-  }
-
-  @SuppressWarnings("SameParameterValue")
-  private static int writeToMemory(ArgumentsMutator mutator, long out, int maxOutSize) {
-    ByteArrayOutputStream baos = new ByteArrayOutputStream();
-    // TODO: Instead of writing to a byte array and then copying that array's contents into
-    //  memory, consider introducing an OutputStream backed by Unsafe.
-    mutator.write(baos);
-    byte[] mutatedBytes = baos.toByteArray();
-    int newSize = Math.min(mutatedBytes.length, maxOutSize);
-    UNSAFE.copyMemory(mutatedBytes, BYTE_ARRAY_OFFSET, null, out, newSize);
-    return newSize;
+    throw new UnsupportedOperationException("Experimental mutator not supported on Android");
   }
 
   /*
    * Starts libFuzzer via LLVMFuzzerRunDriver.
    */
   public static int startLibFuzzer(List<String> args) {
-    // We always define LLVMFuzzerCustomMutator, but only use it when --experimental_mutator is
-    // specified. libFuzzer contains logic that disables --len_control when it finds the custom
-    // mutator symbol:
-    // https://github.com/llvm/llvm-project/blob/da3623de2411dd931913eb510e94fe846c929c24/compiler-rt/lib/fuzzer/FuzzerDriver.cpp#L202-L207
-    // We thus have to explicitly set --len_control to its default value when not using the new
-    // mutator.
-    // TODO: libFuzzer still emits a message about --len_control being disabled by default even if
-    //  we override it via a flag. We may want to patch this out.
-    if (!useExperimentalMutator) {
-      // args may not be mutable.
-      args = new ArrayList<>(args);
-      // https://github.com/llvm/llvm-project/blob/da3623de2411dd931913eb510e94fe846c929c24/compiler-rt/lib/fuzzer/FuzzerFlags.def#L19
-      args.add("-len_control=100");
-    }
-
     for (String arg : args.subList(1, args.size())) {
       if (!arg.startsWith("-")) {
         Log.info("using inputs from: " + arg);
@@ -437,15 +292,6 @@ public final class FuzzTargetRunner {
   }
 
   private static void shutdown() {
-    if (!Opt.coverageDump.get().isEmpty() || !Opt.coverageReport.get().isEmpty()) {
-      if (!Opt.coverageDump.get().isEmpty()) {
-        CoverageRecorder.dumpJacocoCoverage(Opt.coverageDump.get());
-      }
-      if (!Opt.coverageReport.get().isEmpty()) {
-        CoverageRecorder.dumpCoverageReport(Opt.coverageReport.get());
-      }
-    }
-
     if (fuzzerTearDown == null) {
       return;
     }
@@ -474,12 +320,6 @@ public final class FuzzTargetRunner {
       throw new IllegalStateException("SHA-1 not available", e);
     }
     String dataSha1 = toHexString(digest.digest(data));
-
-    if (!Opt.autofuzz.get().isEmpty()) {
-      fuzzedDataProvider.reset();
-      FuzzTarget.dumpReproducer(fuzzedDataProvider, Opt.reproducerPath.get(), dataSha1);
-      return;
-    }
 
     String base64Data;
     if (useFuzzedDataProvider) {
@@ -558,18 +398,18 @@ public final class FuzzTargetRunner {
 
   /**
    * Returns the debug string of the current mutator.
-   * If no mutator is used, returns null.
+   * Android build does not support the experimental mutator, so always returns null.
    */
   public static String mutatorDebugString() {
-    return mutator != null ? mutator.toString() : null;
+    return null;
   }
 
   /**
    * Returns whether the current mutator has detected invalid corpus files.
-   * If no mutator is used, returns false.
+   * Android build does not support the experimental mutator, so always returns false.
    */
   public static boolean invalidCorpusFilesPresent() {
-    return mutator != null && invalidCorpusFileWarningShown;
+    return false;
   }
 
   /**

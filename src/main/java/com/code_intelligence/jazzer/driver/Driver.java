@@ -20,7 +20,6 @@ import static com.code_intelligence.jazzer.runtime.Constants.IS_ANDROID;
 import static java.lang.System.exit;
 import static java.util.stream.Collectors.joining;
 
-import com.code_intelligence.jazzer.driver.junit.JUnitRunner;
 import com.code_intelligence.jazzer.utils.Log;
 import java.io.File;
 import java.io.IOException;
@@ -39,10 +38,6 @@ public class Driver {
     Opt.handleHelpAndVersionArgs();
 
     if (IS_ANDROID) {
-      if (!Opt.autofuzz.get().isEmpty()) {
-        Log.error("--autofuzz is not supported on Android");
-        return 1;
-      }
       if (!Opt.coverageReport.get().isEmpty()) {
         Log.error("--coverage_report is not supported on Android");
         return 1;
@@ -114,11 +109,6 @@ public class Driver {
     }
 
     Driver.class.getClassLoader().setDefaultAssertionStatus(true);
-
-    if (!Opt.autofuzz.get().isEmpty()) {
-      FuzzTargetHolder.fuzzTarget = FuzzTargetHolder.AUTOFUZZ_FUZZ_TARGET;
-      return FuzzTargetRunner.startLibFuzzer(args);
-    }
 
     String targetClassName = FuzzTargetFinder.findFuzzTargetClassName();
     if (targetClassName == null) {

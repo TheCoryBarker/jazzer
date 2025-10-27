@@ -3,45 +3,23 @@ load("@fmeum_rules_jni//jni:defs.bzl", "java_jni_library")
 load("//bazel:compat.bzl", "SKIP_ON_WINDOWS")
 load("//bazel:jar.bzl", "strip_jar")
 
-# The transitive dependencies of this target will be appended to the search path
-# of the bootstrap class loader. They will be visible to all classes - care must
-# be taken to shade everything and generally keep this target as small as
-# possible.
-java_binary(
-    name = "jazzer_bootstrap_unshaded",
-    create_executable = False,
-    runtime_deps = [":jazzer_bootstrap_lib"],
-)
-
+# Runtime dependencies JAR - unshaded library containing runtime hooks.
+# This can be used as a separate JAR or included in jazzer.jar.
+# Kept separate to allow potential future bootstrap classloader injection.
+# Sanitizers are no longer included here - they are provided as dependencies in AOSP builds.
 java_library(
-    name = "jazzer_bootstrap_lib",
-    visibility = ["//src/main/java/com/code_intelligence/jazzer:__pkg__"],
+    name = "runtime_deps",
+    visibility = ["//visibility:public"],
     runtime_deps = [
         ":runtime",
-        "//sanitizers",
     ],
 )
 
-# These classes with public Bazel visibility are contained in jazzer_bootstrap.jar
-# and will thus be available on the bootstrap class path. This target can be
-# passed to the `deploy_env` attribute of the Jazzer `java_binary` to ensure that
-# it doesn't bundle in these classes.
-java_binary(
-    name = "jazzer_bootstrap_env",
-    create_executable = False,
-    visibility = [
-        "//selffuzz:__pkg__",
-        "//src/main/java/com/code_intelligence/jazzer:__pkg__",
-    ],
-    runtime_deps = [
-        "//src/main/java/com/code_intelligence/jazzer/api:hooks",
-        "//src/main/java/com/code_intelligence/jazzer/utils:unsafe_provider",
-    ],
-)
-
+# For non-Android use: create a shaded bootstrap JAR that can be injected into bootstrap classloader
+# This is used by AgentInstaller for the traditional Java agent use case
 jar_jar(
     name = "jazzer_bootstrap_unstripped",
-    input_jar = ":jazzer_bootstrap_unshaded_deploy.jar",
+    input_jar = ":runtime_deps_binary_deploy.jar",
     rules = "bootstrap_shade_rules",
 )
 
@@ -56,46 +34,26 @@ strip_jar(
     ],
     visibility = [
         "//src/main/java/com/code_intelligence/jazzer/agent:__pkg__",
-        "//src/main/java/com/code_intelligence/jazzer/android:__pkg__",
     ],
 )
 
-java_import(
-    name = "jazzer_bootstrap_import",
-    jars = [":jazzer_bootstrap"],
-    visibility = ["//visibility:public"],
+java_binary(
+    name = "runtime_deps_binary",
+    create_executable = False,
+    runtime_deps = [":runtime_deps"],
 )
 
-sh_test(
-    name = "jazzer_bootstrap_shading_test",
-    srcs = ["verify_shading.sh"],
-    args = [
-        "$(rootpath jazzer_bootstrap.jar)",
-        "$(JAVABASE)",
-    ],
-    data = [
-        "jazzer_bootstrap.jar",
-        "@bazel_tools//tools/jdk:current_java_runtime",
-    ],
-    tags = [
-        # Coverage instrumentation necessarily adds files to the jar that we
-        # wouldn't want to release and thus causes this test to fail.
-        "no-coverage",
-    ],
-    target_compatible_with = SKIP_ON_WINDOWS,
-    toolchains = [
-        "@bazel_tools//tools/jdk:current_java_runtime",
-    ],
+# Legacy alias for backwards compatibility
+java_library(
+    name = "jazzer_bootstrap_lib",
+    visibility = ["//src/main/java/com/code_intelligence/jazzer:__pkg__"],
+    runtime_deps = [":runtime_deps"],
 )
 
-# At runtime, the AgentInstaller appends jazzer_bootstrap.jar to the bootstrap
-# class loader's search path - these classes must not be available on the
-# regular classpath. Since dependents should not have to resort to reflection to
-# access these classes they know will be there at runtime, this compile-time
-# only dependency can be used as a replacement.
+# Legacy compile-only dependency - no longer needed since everything is in jazzer.jar
+# Kept for backwards compatibility but now just exports runtime
 java_library(
     name = "jazzer_bootstrap_compile_only",
-    neverlink = True,
     visibility = [
         "//src/main/java/com/code_intelligence/jazzer/autofuzz:__pkg__",
         "//src/main/java/com/code_intelligence/jazzer/driver:__pkg__",

@@ -19,7 +19,7 @@ package com.code_intelligence.jazzer.r8;
 import static java.lang.System.exit;
 
 import com.code_intelligence.jazzer.android.InstrumentationConfig;
-import com.code_intelligence.jazzer.driver.OfflineInstrumentor;
+import com.code_intelligence.jazzer.driver.BuildInstrumentor;
 import com.code_intelligence.jazzer.driver.Opt;
 import java.io.File;
 import java.io.FileInputStream;
@@ -41,11 +41,9 @@ public class R8Wrapper {
   // Path to the instrumentation config file on the host.
   // It is relative to the current working directory.
   private static final String CONFIG_FILE_PATH = "prebuilts/jazzer/jazzer_instrumentation_config.json";
-  private static File customHooksJar;
 
   private static void setOptions() throws Exception {
     List<String> jazzerOpts = new ArrayList<>();
-    // default config object will have all the default hooks disabled
     InstrumentationConfig config = new InstrumentationConfig();
 
     File configFile = new File(CONFIG_FILE_PATH);
@@ -53,7 +51,6 @@ public class R8Wrapper {
     if (configFile.exists()) {
       try (FileInputStream fis = new FileInputStream(configFile)) {
         config.updateFromJson(fis);
-        customHooksJar = config.getCustomHooksJar();
       }
     } else {
       logger.info("No instrumentation config found — using default config.");
@@ -73,35 +70,20 @@ public class R8Wrapper {
       MethodHandle main = MethodHandles.lookup().findStatic(
           soongR8Wrapper, "main", MethodType.methodType(void.class, String[].class));
 
-      // found com.android.tools.r8warpper.R8Wrapper
-      // don't add native libs, we are in AOSP and Soong has special code for this
-      boolean instrumentationSuccess = OfflineInstrumentor.instrumentJars(jarfiles, false, customHooksJar);
+      // Instrument application JARs with Jazzer hooks
+      // Native libraries are handled separately by Soong
+      boolean instrumentationSuccess = BuildInstrumentor.instrumentJars(jarfiles);
       if (!instrumentationSuccess) {
         exit(1);
       }
 
       main.invokeExact(args);
-      return;
     } catch (ClassNotFoundException cnfe) {
-      // This is ok, we wouldn't expect this class to be found outside of AOSP
-      logger.warning("No wrapper function found");
-    }
-
-    try {
-      Class<?> r8 = Class.forName("com.android.tools.r8.R8", false, R8Wrapper.class.getClassLoader());
-      MethodHandle main = MethodHandles.lookup().findStatic(
-          r8, "main", MethodType.methodType(void.class, String[].class));
-
-      // Calling normal R8 functions.
-      // TODO: this path needs more testing
-      boolean instrumentationSuccess = OfflineInstrumentor.instrumentJars(jarfiles, true, customHooksJar);
-      if (!instrumentationSuccess) {
-        exit(1);
-      }
-
-      main.invokeExact(args);
+      logger.severe("com.android.tools.r8wrappers.R8Wrapper not found - this tool is AOSP-only");
+      exit(1);
     } catch (Exception e) {
-      logger.warning("Error during R8 processing: " + e.getMessage());
+      logger.severe("Error during R8 processing: " + e.getMessage());
+      exit(1);
     }
   }
 

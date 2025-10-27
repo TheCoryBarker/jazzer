@@ -272,9 +272,3 @@ cc_library(
     urls = ["https://github.com/google/libprotobuf-mutator/archive/3b28530531b154a748fe9884bc9219b4966f0754.tar.gz"],
 )
 
-http_file(
-    name = "android_jvmti",
-    downloaded_file_path = "jvmti.encoded",
-    sha256 = "95bd6fb4f296ff1c49b893c1d3a665de3c2b1beaa3cc8fc570dea992202daa35",
-    url = "https://android.googlesource.com/platform/art/+/1cff8449bac0fdab6e84dc9255c3cccd504c1705/openjdkjvmti/include/jvmti.h?format=TEXT",
-)

@@ -1,0 +1,101 @@
+
+android_library {
+  name: "app_fuzz_lib",
+  srcs: [
+    "AndroidStart.java",
+    "AndroidStartWrapper.java",
+  ],
+  static_libs: [
+    "jazzer_runtime",
+    "jazzer-sanitizers",
+  ],
+  manifest: "AndroidManifest.xml",
+  platform_apis: true,
+  optimize: {
+    shrink: false,
+    optimize: false,
+    obfuscate: false,
+    //proguard_flags_files: ["proguard.flags"],
+  },
+}
+
+java_defaults {
+  name: "java_fuzz_defaults",
+  static_libs: [
+    "app_fuzz_lib",
+  ],
+  jni_libs: [
+    "libjazzer_driver",
+    "libjazzer_fuzzed_data_provider",
+    "libjazzer_preload",
+    "libjazzer_signal_handler",
+  ],
+  optimize: {
+    shrink: false,
+    optimize: false,
+    obfuscate: false,
+    proguard_flags_files: [":app_fuzzing_proguard_file"],
+  },
+}
+
+cc_prebuilt_library_shared {
+  name: "libjazzer_driver",
+  srcs: [
+    "lib/arm64/libjazzer_driver.so",
+  ],
+  strip: {
+    none: true,
+  },
+  ignore_max_page_size: true,
+}
+
+cc_prebuilt_library_shared {
+  name: "libjazzer_fuzzed_data_provider",
+  srcs: [
+    "lib/arm64/libjazzer_fuzzed_data_provider.so",
+  ],
+  strip: {
+    none: true,
+  },
+  ignore_max_page_size: true,
+}
+
+
+cc_prebuilt_library_shared {
+  name: "libjazzer_preload",
+  srcs: [
+    "lib/arm64/libjazzer_preload.so",
+  ],
+  strip: {
+    none: true,
+  },
+  ignore_max_page_size: true,
+}
+
+
+cc_prebuilt_library_shared {
+  name: "libjazzer_signal_handler",
+  srcs: [
+    "lib/arm64/libjazzer_signal_handler.so",
+  ],
+  strip: {
+    none: true,
+  },
+  ignore_max_page_size: true,
+}
+
+
+filegroup {
+  name: "app_fuzzing_proguard_file",
+  srcs: [
+    "proguard.flags",
+  ],
+}
+
+java_import {
+    name: "jazzer_runtime",
+    jars: [
+        "jazzer.jar",
+    ],
+    //exclude_dirs: ["META-INF/versions],
+}

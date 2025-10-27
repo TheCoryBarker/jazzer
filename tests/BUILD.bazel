@@ -178,8 +178,8 @@ java_fuzz_target_test(
         "-runs=0",
         "--custom_hooks=com.example.DisabledHook",
     ] + select({
-        "@platforms//os:windows": ["--disabled_hooks=com.example.DisabledHook;com.code_intelligence.jazzer.sanitizers.RegexInjection"],
-        "//conditions:default": ["--disabled_hooks=com.example.DisabledHook:com.code_intelligence.jazzer.sanitizers.RegexInjection"],
+        "@platforms//os:windows": ["--disabled_hooks=com.example.DisabledHook"],
+        "//conditions:default": ["--disabled_hooks=com.example.DisabledHook"],
     }),
     target_class = "com.example.DisabledHooksFuzzer",
 )

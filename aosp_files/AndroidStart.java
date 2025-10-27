@@ -35,18 +35,9 @@ public class AndroidStart extends Service {
   public void onCreate() {
     super.onCreate();
 
-    // Pass the Context to the fuzzer via static holder
-    try {
-      Class<?> contextHolder = Class.forName("com.app.cory.FuzzerContext");
-      java.lang.reflect.Method setContext = contextHolder.getMethod("setContext", android.content.Context.class);
-      setContext.invoke(null, this);
-    } catch (Exception e) {
-      // FuzzerContext not found - fuzzer may not need Context
-    }
-
     ArrayList<String> args = new ArrayList<>();
     args.add("--reproducer_path=" + getFilesDir().getPath().toString());
-    // TODO this should be found more intelligently
+    // TODO this should be found more intelligently -- pass in param?
     args.add("--target_class=com.app.cory.ExampleFuzzer");
 
     AndroidStartWrapper.Call(args);

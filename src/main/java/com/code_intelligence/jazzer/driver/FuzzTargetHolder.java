@@ -22,22 +22,6 @@ import java.util.Optional;
 import java.util.concurrent.Callable;
 
 public class FuzzTargetHolder {
-  public static FuzzTarget autofuzzFuzzTarget(Callable<Object> newInstance) {
-    try {
-      Method fuzzerTestOneInput = com.code_intelligence.jazzer.autofuzz.FuzzTarget.class.getMethod(
-          "fuzzerTestOneInput", FuzzedDataProvider.class);
-      return new FuzzTargetHolder.FuzzTarget(fuzzerTestOneInput, newInstance, Optional.empty());
-    } catch (NoSuchMethodException e) {
-      throw new IllegalStateException(e);
-    }
-  }
-
-  public static final FuzzTarget AUTOFUZZ_FUZZ_TARGET = autofuzzFuzzTarget(() -> {
-    com.code_intelligence.jazzer.autofuzz.FuzzTarget.fuzzerInitialize(
-        Opt.targetArgs.get().toArray(new String[0]));
-    return null;
-  });
-
   /**
    * The fuzz target that {@link FuzzTargetRunner} should fuzz.
    */

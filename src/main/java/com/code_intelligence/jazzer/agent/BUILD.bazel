@@ -25,7 +25,6 @@ kt_jvm_library(
         "RuntimeInstrumentor.kt",
     ],
     deps = [
-        "//sanitizers/src/main/java/com/code_intelligence/jazzer/sanitizers:constants",
         "//src/main/java/com/code_intelligence/jazzer/driver:opt",
         "//src/main/java/com/code_intelligence/jazzer/instrumentor",
         "//src/main/java/com/code_intelligence/jazzer/utils:class_name_globber",

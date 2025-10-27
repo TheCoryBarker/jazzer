@@ -8,8 +8,13 @@ java_library(
     name = "wrapper",
     srcs = ["AndroidStartWrapper.java"],
     resources = [
-        "//src/main/java/com/code_intelligence/jazzer/runtime:jazzer_bootstrap_import",
         "//src/main/java/com/code_intelligence/jazzer:jazzer_import",
+    ],
+    runtime_deps = [
+        "//src/main/native/com/code_intelligence/jazzer:jazzer_preload",
+        "//src/main/native/com/code_intelligence/jazzer/driver:jazzer_driver",
+        "//src/main/native/com/code_intelligence/jazzer/driver:jazzer_fuzzed_data_provider",
+        "//src/main/native/com/code_intelligence/jazzer/driver:jazzer_signal_handler",
     ],
 )
 
@@ -54,15 +59,6 @@ copy_file(
     ],
 )
 
-copy_file(
-    name = "jazzer_bootstrap_jar",
-    src = "//src/main/java/com/code_intelligence/jazzer/runtime:jazzer_bootstrap",
-    out = "jazzer_bootstrap.jar",
-    visibility = [
-        "//src/main/java/com/code_intelligence/jazzer/agent:__pkg__",
-    ],
-)
-
 java_binary (
     name = "r8",
     create_executable = False,
@@ -72,7 +68,7 @@ java_binary (
     main_class = "com.code_intelligence.jazzer.r8.R8Wrapper",
     srcs = ["R8Wrapper.java"],
     deps = [
-        "//src/main/java/com/code_intelligence/jazzer/driver:offline_instrumentor",
+        "//src/main/java/com/code_intelligence/jazzer/driver:build_instrumentor",
         "//src/main/java/com/code_intelligence/jazzer/driver:opt",
         "//src/main/java/com/code_intelligence/jazzer/utils:log",
         "//third_party/android:local_r8",
@@ -85,7 +81,6 @@ java_library(
     srcs = ["InstrumentationConfig.java"],
     deps = [
         "@maven//:com_google_code_gson_gson",
-        "//sanitizers/src/main/java/com/code_intelligence/jazzer/sanitizers:constants",
     ],
 )
 

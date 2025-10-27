@@ -1,0 +1,5 @@
+Environment variables set:
+ANDROID_HOME=/usr/local/google/home/cobark/Android/Sdk
+ANDROID_NDK_HOME=/usr/local/google/home/cobark/Android/Sdk/ndk/29.0.14206865
+CC=/usr/bin/gcc
+CXX=/usr/bin/g++

@@ -14,15 +14,11 @@
 
 package com.code_intelligence.jazzer.agent;
 
-import static com.code_intelligence.jazzer.agent.AgentUtils.extractBootstrapJar;
-
 import java.io.File;
-import java.io.IOException;
 import java.lang.instrument.Instrumentation;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.jar.JarFile;
 import java.util.logging.Logger;
 
 import net.bytebuddy.agent.ByteBuddyAgent;
@@ -31,29 +27,22 @@ public class AgentInstaller {
   private static final AtomicBoolean hasBeenInstalled = new AtomicBoolean();
   private static final Logger logger = Logger.getLogger(AgentInstaller.class.getName());
   /**
-   * Appends the parts of Jazzer that have to be visible to all classes, including those in the Java
-   * standard library, to the bootstrap class loader path. Additionally, if enableAgent is true,
-   * also enables the Jazzer agent that instruments classes for fuzzing.
+   * Installs the Jazzer agent for build-time instrumentation.
+   * For Android builds, we only instrument application code (not bootstrap classes),
+   * so there's no need to add anything to the bootstrap classloader.
    */
-  public static void install(boolean enableAgent, File customHooksJar) {
+  public static void install(boolean enableAgent) {
     // Only install the agent once.
     if (!hasBeenInstalled.compareAndSet(false, true)) {
       return;
     }
 
     Instrumentation instrumentation = ByteBuddyAgent.install();
-    instrumentation.appendToBootstrapClassLoaderSearch(extractBootstrapJar());
 
-    if (customHooksJar != null) {
-      try {
-        instrumentation.appendToBootstrapClassLoaderSearch(new JarFile(customHooksJar));
-        logger.info("Added external hooks jar to bootstrap: " + customHooksJar.getAbsolutePath());
-      } catch (IOException e) {
-        logger.warning("Failed to add external hooks jar due to error: " + e);
-      }
-    } else {
-      logger.warning("Jar for adding custom hooks is not present to add in bootstrap class loader search.");
-    }
+    // For Android build-time instrumentation, we don't need to add anything to bootstrap
+    // classloader since we're only instrumenting application code, not bootstrap classes.
+    // Sanitizers are provided as dependencies in the AOSP build and are already on the
+    // classpath.
 
     if (!enableAgent) {
       return;
