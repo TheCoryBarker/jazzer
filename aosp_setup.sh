@@ -114,7 +114,7 @@ setup_r8_cmd() {
   local JAZZER_R8_PATH="$JAZZER_TOP/bazel-bin/src/main/java/com/code_intelligence/jazzer/android/r8_deploy.jar"
 
   # Clean AOSP r8 prebuilts so the build picks up changes
-  rm -rf "$AOSP_TOP/out/soong/.intermediates/prebuilts/r8/r8" || true
+  rm -rf "$AOSP_TOP/out/soong/.intermediates/prebuilts/r8" || true
   rm -f "$AOSP_TOP/out/host/linux-x86/framework/r8.jar" || true
 
   # Build customized r8
