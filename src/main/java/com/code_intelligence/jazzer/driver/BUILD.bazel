@@ -120,6 +120,7 @@ java_jni_library(
     deps = [
         "//src/main/java/com/code_intelligence/jazzer/api",
         "//src/main/java/com/code_intelligence/jazzer/utils:unsafe_provider",
+        "//src/main/java/com/code_intelligence/jazzer/runtime:constants",
     ],
 )
 
@@ -152,6 +153,7 @@ java_library(
     ],
     deps = [
         ":opt_item",
+        "//src/main/java/com/code_intelligence/jazzer/runtime:constants",
         "//src/main/java/com/code_intelligence/jazzer:constants",
         "//src/main/java/com/code_intelligence/jazzer/utils:log",
     ],
@@ -177,7 +179,10 @@ java_jni_library(
     srcs = ["SignalHandler.java"],
     native_libs = ["//src/main/native/com/code_intelligence/jazzer/driver:jazzer_signal_handler"],
     visibility = ["//src/main/native/com/code_intelligence/jazzer/driver:__pkg__"],
-    deps = [":opt"],
+    deps = [
+        ":opt",
+        "//src/main/java/com/code_intelligence/jazzer/runtime:constants",
+    ],
 )
 
 ktlint()

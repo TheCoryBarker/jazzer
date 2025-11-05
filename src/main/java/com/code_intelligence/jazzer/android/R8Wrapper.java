@@ -56,6 +56,7 @@ public class R8Wrapper {
       logger.info("No instrumentation config found — using default config.");
     }
 
+    jazzerOpts.add("--trace=cov:cmp:div");
     config.addToJazzerOpts(jazzerOpts);
     Opt.registerAndValidateCommandLineArgs(Opt.parseJazzerArgs(jazzerOpts));
   }

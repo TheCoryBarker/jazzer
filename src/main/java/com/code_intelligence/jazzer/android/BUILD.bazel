@@ -73,6 +73,10 @@ java_binary (
         "//src/main/java/com/code_intelligence/jazzer/utils:log",
         "//third_party/android:local_r8",
         "//src/main/java/com/code_intelligence/jazzer/android:instrumentation_config",
+        "//src/main/native/com/code_intelligence/jazzer:jazzer_preload",
+        "//src/main/native/com/code_intelligence/jazzer/driver:jazzer_driver",
+        "//src/main/native/com/code_intelligence/jazzer/driver:jazzer_fuzzed_data_provider",
+        "//src/main/native/com/code_intelligence/jazzer/driver:jazzer_signal_handler",
     ],
 )
 

@@ -15,11 +15,17 @@
 package com.code_intelligence.jazzer.driver;
 
 import com.github.fmeum.rules_jni.RulesJni;
+import static com.code_intelligence.jazzer.runtime.Constants.IS_ANDROID;
+import com.github.fmeum.rules_jni.RulesJni;
 import sun.misc.Signal;
 
 public final class SignalHandler {
   static {
-    System.loadLibrary("jazzer_signal_handler");
+    if (!IS_ANDROID) {
+      RulesJni.loadLibrary("jazzer_signal_handler", SignalHandler.class);
+    } else {
+      System.loadLibrary("jazzer_signal_handler");
+    }
     Signal.handle(new Signal("INT"), sig -> handleInterrupt());
   }
 

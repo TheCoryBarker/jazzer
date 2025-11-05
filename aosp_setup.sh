@@ -118,7 +118,7 @@ setup_r8_cmd() {
   rm -f "$AOSP_TOP/out/host/linux-x86/framework/r8.jar" || true
 
   # Build customized r8
-  bazelisk build --config=android_arm src/main/java/com/code_intelligence/jazzer/android:r8_deploy.jar
+  bazelisk build src/main/java/com/code_intelligence/jazzer/android:r8_deploy.jar
 
   # Replace AOSP r8.jar with our build
   rm -f "$AOSP_R8_PATH" || true
@@ -177,20 +177,22 @@ setup_jazzer_runtime_cmd() {
     echo "JAZZER_SO_COUNT=$JAZZER_SO_COUNT"
     echo "JAZZER_SO_PATHS=$JAZZER_SO_PATHS"
 
+    # Create / clear the runtime directory
     JAZZER_RUNTIME_AOSP_DIRECTORY=$AOSP_TOP/tools/security/fuzzing/jazzer
     rm -rf "$JAZZER_RUNTIME_AOSP_DIRECTORY"
-    local DEST_DIR="$JAZZER_RUNTIME_AOSP_DIRECTORY/lib/arm64"
-    mkdir -p "$DEST_DIR"
+
     # Copy all .so libraries
+    local NATIVE_LIBS_DIR="$JAZZER_RUNTIME_AOSP_DIRECTORY/jazzer_library/lib/arm64"
+    mkdir -p "$NATIVE_LIBS_DIR"
     for so in "${JAZZER_SO_FILES[@]}"; do
-      cp -f "$so" "$DEST_DIR/"
-      echo "Copied $(basename "$so") to $DEST_DIR"
+      cp -f "$so" "$NATIVE_LIBS_DIR/"
+      echo "Copied $(basename "$so") to $NATIVE_LIBS_DIR"
     done
 
     # Copy jazzer.jar to the runtime directory root
     if [ -n "${JAZZER_JAR_PATH:-}" ] && [ -f "$JAZZER_JAR_PATH" ]; then
       mkdir -p "$JAZZER_RUNTIME_AOSP_DIRECTORY"
-      cp -f "$JAZZER_JAR_PATH" "$JAZZER_RUNTIME_AOSP_DIRECTORY/jazzer.jar"
+      cp -f "$JAZZER_JAR_PATH" "$JAZZER_RUNTIME_AOSP_DIRECTORY/jazzer_library/jazzer.jar"
       echo "Copied jazzer.jar to $JAZZER_RUNTIME_AOSP_DIRECTORY"
     else
       echo "Warning: jazzer.jar not found to copy (JAZZER_JAR_PATH=$JAZZER_JAR_PATH)" >&2

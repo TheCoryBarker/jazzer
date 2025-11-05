@@ -32,7 +32,11 @@ import sun.misc.Unsafe;
  */
 final public class CoverageMap {
   static {
-    System.loadLibrary("jazzer_driver");
+    if (!IS_ANDROID) {
+      RulesJni.loadLibrary("jazzer_driver", CoverageMap.class);
+    } else {
+      System.loadLibrary("jazzer_driver");
+    }
   }
 
   private static final String ENV_MAX_NUM_COUNTERS = "JAZZER_MAX_NUM_COUNTERS";

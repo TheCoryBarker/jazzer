@@ -1,0 +1,9 @@
+
+android_app {
+    name: "AppExample",
+    srcs: ["src/**/*.java"],
+    manifest: "AndroidManifest.xml",
+    platform_apis: true,
+    use_embedded_native_libs: true,
+    defaults: ["java_fuzz_defaults"],
+}

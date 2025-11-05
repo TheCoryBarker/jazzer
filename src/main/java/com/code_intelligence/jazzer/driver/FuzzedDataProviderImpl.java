@@ -14,6 +14,7 @@
 
 package com.code_intelligence.jazzer.driver;
 
+import static com.code_intelligence.jazzer.runtime.Constants.IS_ANDROID;
 import com.code_intelligence.jazzer.api.FuzzedDataProvider;
 import com.code_intelligence.jazzer.utils.UnsafeProvider;
 import com.github.fmeum.rules_jni.RulesJni;
@@ -21,7 +22,11 @@ import sun.misc.Unsafe;
 
 public class FuzzedDataProviderImpl implements FuzzedDataProvider, AutoCloseable {
   static {
-    System.loadLibrary("jazzer_fuzzed_data_provider");
+    if (!IS_ANDROID) {
+      RulesJni.loadLibrary("jazzer_fuzzed_data_provider", FuzzedDataProviderImpl.class);
+    } else {
+      System.loadLibrary("jazzer_fuzzed_data_provider");
+    }
     nativeInit();
   }
 
