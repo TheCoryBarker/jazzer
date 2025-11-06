@@ -1,0 +1,13 @@
+"""Android-specific toolchain definitions."""
+
+# Define a Java runtime toolchain that's compatible with Android platforms
+# This allows host JDK to be used for Android compilation
+toolchain(
+    name = "android_java_runtime_toolchain",
+    toolchain = "@local_jdk//:jdk",
+    toolchain_type = "@bazel_tools//tools/jdk:runtime_toolchain_type",
+    target_compatible_with = [
+        "@platforms//os:android",
+    ],
+    visibility = ["//visibility:public"],
+)

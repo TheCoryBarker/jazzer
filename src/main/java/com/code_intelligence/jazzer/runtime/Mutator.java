@@ -17,14 +17,18 @@
 package com.code_intelligence.jazzer.runtime;
 
 import com.github.fmeum.rules_jni.RulesJni;
-
+import static com.code_intelligence.jazzer.runtime.Constants.IS_ANDROID;
 public final class Mutator {
   public static final boolean SHOULD_MOCK =
       Boolean.parseBoolean(System.getenv("JAZZER_MOCK_LIBFUZZER_MUTATOR"));
 
   static {
     if (!SHOULD_MOCK) {
-      RulesJni.loadLibrary("jazzer_driver", "/com/code_intelligence/jazzer/driver");
+      if (!IS_ANDROID) {
+        RulesJni.loadLibrary("jazzer_driver", Mutator.class);
+      } else {
+        System.loadLibrary("jazzer_driver");
+      }
     }
   }
 

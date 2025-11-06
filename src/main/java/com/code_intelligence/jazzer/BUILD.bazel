@@ -3,7 +3,6 @@ load("@com_github_johnynek_bazel_jar_jar//:jar_jar.bzl", "jar_jar")
 load("@rules_jvm_external//:defs.bzl", "javadoc")
 load("//:maven.bzl", "JAZZER_VERSION")
 load("//bazel:jar.bzl", "strip_jar")
-load("//sanitizers:sanitizers.bzl", "SANITIZER_CLASSES")
 
 java_binary(
     name = "jazzer_standalone",
@@ -18,6 +17,9 @@ java_binary(
     ],
 )
 
+# paths to strip is very hacky, but who am I to argue with the machine who proposed this fix?
+# leaving for now, we should be able to remove this and just not build the native libs into this,
+# but I'm looking for an ROI before making things perfect
 strip_jar(
     name = "jazzer",
     out = "jazzer.jar",
@@ -28,6 +30,13 @@ strip_jar(
         "META-INF/MANIFEST.MF",
         "win32-x86/**",
         "win32-x86-64/**",
+    ],
+    paths_to_strip = [
+        "**/*.so",
+        "**/jazzer_preload_*/**",
+        "**/jazzer_driver_*/**",
+        "**/jazzer_fuzzed_data_provider_*/**",
+        "**/jazzer_signal_handler_*/**",
     ],
     visibility = ["//visibility:public"],
 )
@@ -41,7 +50,7 @@ java_library(
 java_import(
     name = "jazzer_import",
     jars = [":jazzer"],
-    visibility = ["//:__subpackages__"],
+    visibility = ["//visibility:public"],
     deps = ["//deploy:jazzer-api-lib"],
 )
 
@@ -54,16 +63,13 @@ jar_jar(
 java_binary(
     name = "jazzer_unshaded",
     create_executable = False,
-    # Note: We can't add
-    # //src/main/java/com/code_intelligence/jazzer/runtime:java_bootstrap_unshaded itself as
-    # that would also strip out external dependencies common between Jazzer and its bootstrap jar,
-    # such as e.g. RulesJni, which should be shaded into distinct classes.
-    deploy_env = [
-        "//src/main/java/com/code_intelligence/jazzer/api:api_deploy_env",
-        "//src/main/java/com/code_intelligence/jazzer/runtime:jazzer_bootstrap_env",
-    ],
+    # Android-only build: includes API directly (no deploy_env exclusion)
     main_class = "com.code_intelligence.jazzer.Jazzer",
-    runtime_deps = [":jazzer_lib"],
+    runtime_deps = [
+        ":jazzer_lib",
+        "//src/main/java/com/code_intelligence/jazzer/api",
+        "//src/main/java/com/code_intelligence/jazzer/runtime:runtime_deps",
+    ],
 )
 
 # Docs are only generated for the com.code_intelligence.jazzer package. Everything else is not
@@ -108,16 +114,10 @@ java_library(
     name = "jazzer_lib",
     srcs = ["Jazzer.java"],
     visibility = ["//deploy:__pkg__"],
-    runtime_deps = select({
-        "@platforms//os:windows": [],
-        "//conditions:default": ["//src/main/native/com/code_intelligence/jazzer:jazzer_preload"],
-    }) + [
-        # Only used by JUnit, but including it here means we don't need to shade ASM in
-        # jazzer-junit.
-        "//src/main/java/com/code_intelligence/jazzer/utils:unsafe_utils",
+    runtime_deps = [
+        "//src/main/native/com/code_intelligence/jazzer:jazzer_preload",
     ],
     deps = [
-        "//src/main/java/com/code_intelligence/jazzer/android:android_runtime",
         "//src/main/java/com/code_intelligence/jazzer/driver",
         "//src/main/java/com/code_intelligence/jazzer/driver:opt",
         "//src/main/java/com/code_intelligence/jazzer/runtime:constants",

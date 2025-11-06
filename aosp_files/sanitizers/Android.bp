@@ -1,0 +1,9 @@
+java_library {
+    name: "jazzer-sanitizers",
+    srcs: [
+        "*.java",
+    ],
+    static_libs: [
+        "jazzer_runtime",
+    ],
+}

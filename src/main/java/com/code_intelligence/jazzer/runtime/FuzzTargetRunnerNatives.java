@@ -29,7 +29,7 @@ public class FuzzTargetRunnerNatives {
       throw new IllegalStateException(
           "FuzzTargetRunnerNatives must be loaded in the bootstrap loader");
     }
-    RulesJni.loadLibrary("jazzer_driver", "/com/code_intelligence/jazzer/driver");
+    System.loadLibrary("jazzer_driver");
   }
 
   public static native int startLibFuzzer(

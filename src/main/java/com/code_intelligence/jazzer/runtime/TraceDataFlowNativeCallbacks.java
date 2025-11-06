@@ -32,7 +32,7 @@ final public class TraceDataFlowNativeCallbacks {
   private static final Charset FUZZED_DATA_CHARSET = Charset.forName("CESU8");
 
   static {
-    RulesJni.loadLibrary("jazzer_driver", "/com/code_intelligence/jazzer/driver");
+    System.loadLibrary("jazzer_driver");
   }
 
   // It is possible for RulesJni#loadLibrary to trigger a hook even though it isn't instrumented if

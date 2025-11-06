@@ -14,22 +14,24 @@
 
 package com.code_intelligence.jazzer.agent;
 
-import static com.code_intelligence.jazzer.agent.AgentUtils.extractBootstrapJar;
-import static com.code_intelligence.jazzer.runtime.Constants.IS_ANDROID;
-
+import java.io.File;
 import java.lang.instrument.Instrumentation;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.logging.Logger;
+import java.util.jar.JarFile;
+
 import net.bytebuddy.agent.ByteBuddyAgent;
 
 public class AgentInstaller {
   private static final AtomicBoolean hasBeenInstalled = new AtomicBoolean();
-
+  private static final Logger logger = Logger.getLogger(AgentInstaller.class.getName());
   /**
-   * Appends the parts of Jazzer that have to be visible to all classes, including those in the Java
-   * standard library, to the bootstrap class loader path. Additionally, if enableAgent is true,
-   * also enables the Jazzer agent that instruments classes for fuzzing.
+   * Installs the Jazzer agent for build-time instrumentation.
+   * For Android builds, we only instrument application code (not bootstrap classes),
+   * so there's no need to add anything to the bootstrap classloader.
    */
   public static void install(boolean enableAgent) {
     // Only install the agent once.
@@ -37,15 +39,49 @@ public class AgentInstaller {
       return;
     }
 
-    if (IS_ANDROID) {
+    Instrumentation instrumentation = ByteBuddyAgent.install();
+
+    // For Android build-time instrumentation, we don't need to add anything to bootstrap
+    // classloader since we're only instrumenting application code, not bootstrap classes.
+    // Sanitizers are provided as dependencies in the AOSP build and are already on the
+    // classpath.
+
+    if (!enableAgent) {
+      return;
+    }
+
+    try {
+      Class<?> agent = Class.forName("com.code_intelligence.jazzer.agent.Agent");
+      Method install = agent.getMethod("install", Instrumentation.class);
+      install.invoke(null, instrumentation);
+    } catch (ClassNotFoundException | InvocationTargetException | NoSuchMethodException
+        | IllegalAccessException e) {
+      throw new IllegalStateException("Failed to run Agent.install", e);
+    }
+  }
+
+  /**
+   * Installs the Jazzer agent for build-time instrumentation and appends the given jars to the
+   * bootstrap classloader search so that hook classes contained in those jars are resolvable
+   * during hook discovery.
+   */
+  public static void installWithHookJars(List<String> hookJars) {
+    if (!hasBeenInstalled.compareAndSet(false, true)) {
       return;
     }
 
     Instrumentation instrumentation = ByteBuddyAgent.install();
-    instrumentation.appendToBootstrapClassLoaderSearch(extractBootstrapJar());
-    if (!enableAgent) {
-      return;
+
+    if (hookJars != null) {
+      for (String jarPath : hookJars) {
+        try {
+          instrumentation.appendToBootstrapClassLoaderSearch(new JarFile(jarPath));
+        } catch (Throwable t) {
+          logger.warning("Failed to append to bootstrap: " + jarPath + " - " + t);
+        }
+      }
     }
+
     try {
       Class<?> agent = Class.forName("com.code_intelligence.jazzer.agent.Agent");
       Method install = agent.getMethod("install", Instrumentation.class);

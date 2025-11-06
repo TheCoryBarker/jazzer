@@ -9,6 +9,10 @@ load("//:init.bzl", "jazzer_init")
 
 jazzer_init()
 
+
+# rules_java, rules_cc, and platforms are now managed by bzlmod in MODULE.bazel
+# for better Android compatibility
+
 http_archive(
     name = "com_google_protobuf",
     patches = ["//third_party:protobuf-disable-layering_check.patch"],
@@ -33,8 +37,7 @@ filegroup(
 
 http_archive(
     name = "com_grail_bazel_toolchain",
-    sha256 = "da607faed78c4cb5a5637ef74a36fdd2286f85ca5192222c4664efec2d529bb8",
-    strip_prefix = "bazel-toolchain-0.6.3",
+    strip_prefix = "toolchains_llvm-0.6.3",
     urls = ["https://github.com/grailbio/bazel-toolchain/archive/refs/tags/0.6.3.tar.gz"],
 )
 
@@ -76,19 +79,8 @@ http_archive(
     url = "https://github.com/bazel-contrib/rules_jvm/releases/download/v0.14.0/rules_jvm-v0.14.0.tar.gz",
 )
 
-http_archive(
-    name = "build_bazel_rules_android",
-    sha256 = "cd06d15dd8bb59926e4d65f9003bfc20f9da4b2519985c27e190cddc8b7a7806",
-    strip_prefix = "rules_android-0.1.1",
-    urls = ["https://github.com/bazelbuild/rules_android/archive/v0.1.1.zip"],
-)
-
-http_archive(
-    name = "rules_android_ndk",
-    sha256 = "73eac2cf5f2fd009e8fb197346a2ca39f320b786985658de63a1dff0f12c53d5",
-    strip_prefix = "rules_android_ndk-72ca32741f27c3de69fdcb7a1aaf3ca59919ad8c",
-    url = "https://github.com/bazelbuild/rules_android_ndk/archive/72ca32741f27c3de69fdcb7a1aaf3ca59919ad8c.zip",
-)
+# Android rules (rules_android and rules_android_ndk) are now managed by bzlmod
+# in MODULE.bazel for better compatibility with Bazel 7.4.0
 
 http_file(
     name = "genhtml",
@@ -154,14 +146,12 @@ maven_install(
     fail_if_repin_required = True,
     maven_install_json = "//:maven_install.json",
     override_targets = {
-        "org.jetbrains.kotlin:kotlin-reflect": "@com_github_jetbrains_kotlin//:kotlin-reflect",
-        "org.jetbrains.kotlin:kotlin-stdlib": "@com_github_jetbrains_kotlin//:kotlin-stdlib",
         "com.google.errorprone:error_prone_annotations": "@com_google_errorprone_error_prone_annotations//jar",
     },
     repositories = [
         "https://repo1.maven.org/maven2",
     ],
-    strict_visibility = True,
+    strict_visibility = False,
 )
 
 load("@maven//:defs.bzl", "pinned_maven_install")
@@ -190,13 +180,12 @@ http_file(
     urls = ["https://repo1.maven.org/maven2/org/jacoco/org.jacoco.cli/0.8.8/org.jacoco.cli-0.8.8-nodeps.jar"],
 )
 
-load("//third_party/android:android_configure.bzl", "android_configure")
-
-android_configure(name = "configure_android_rules")
-
-load("@configure_android_rules//:android_configure.bzl", "android_workspace")
-
-android_workspace()
+# Android configuration is now handled by bzlmod in MODULE.bazel
+# Commenting out WORKSPACE-based android_configure for Bazel 7.4.0 compatibility
+# load("//third_party/android:android_configure.bzl", "android_configure")
+# android_configure(name = "configure_android_rules")
+# load("@configure_android_rules//:android_configure.bzl", "android_workspace")
+# android_workspace()
 
 http_archive(
     name = "buildifier_prebuilt",
@@ -283,9 +272,3 @@ cc_library(
     urls = ["https://github.com/google/libprotobuf-mutator/archive/3b28530531b154a748fe9884bc9219b4966f0754.tar.gz"],
 )
 
-http_file(
-    name = "android_jvmti",
-    downloaded_file_path = "jvmti.encoded",
-    sha256 = "95bd6fb4f296ff1c49b893c1d3a665de3c2b1beaa3cc8fc570dea992202daa35",
-    url = "https://android.googlesource.com/platform/art/+/1cff8449bac0fdab6e84dc9255c3cccd504c1705/openjdkjvmti/include/jvmti.h?format=TEXT",
-)

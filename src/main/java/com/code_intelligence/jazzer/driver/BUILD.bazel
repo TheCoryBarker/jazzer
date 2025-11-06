@@ -18,21 +18,17 @@ java_library(
         ":fuzz_target_finder",
         ":fuzz_target_holder",
         ":fuzz_target_runner",
-        ":offline_instrumentor",
         ":opt",
-        "//src/main/java/com/code_intelligence/jazzer/agent:agent_installer",
-        "//src/main/java/com/code_intelligence/jazzer/android:android_runtime",
-        "//src/main/java/com/code_intelligence/jazzer/driver/junit:junit_runner",
         "//src/main/java/com/code_intelligence/jazzer/runtime:constants",
         "//src/main/java/com/code_intelligence/jazzer/utils:log",
     ],
 )
 
 java_library(
-    name = "offline_instrumentor",
-    srcs = ["OfflineInstrumentor.java"],
+    name = "build_instrumentor",
+    srcs = ["BuildInstrumentor.java"],
     visibility = [
-        "//src/main/java/com/code_intelligence/jazzer:__pkg__",
+        "//visibility:public",
     ],
     deps = [
         ":opt",
@@ -78,7 +74,6 @@ java_library(
     deps = [
         ":opt",
         "//src/main/java/com/code_intelligence/jazzer/api",
-        "//src/main/java/com/code_intelligence/jazzer/autofuzz",
     ],
 )
 
@@ -107,9 +102,6 @@ java_jni_library(
         ":reproducer_template",
         ":signal_handler",
         "//src/main/java/com/code_intelligence/jazzer/api",
-        "//src/main/java/com/code_intelligence/jazzer/autofuzz",
-        "//src/main/java/com/code_intelligence/jazzer/instrumentor",
-        "//src/main/java/com/code_intelligence/jazzer/mutation",
         "//src/main/java/com/code_intelligence/jazzer/runtime:constants",
         "//src/main/java/com/code_intelligence/jazzer/runtime:jazzer_bootstrap_compile_only",
         "//src/main/java/com/code_intelligence/jazzer/utils:log",
@@ -128,6 +120,7 @@ java_jni_library(
     deps = [
         "//src/main/java/com/code_intelligence/jazzer/api",
         "//src/main/java/com/code_intelligence/jazzer/utils:unsafe_provider",
+        "//src/main/java/com/code_intelligence/jazzer/runtime:constants",
     ],
 )
 
@@ -154,11 +147,13 @@ java_library(
         "//src/main/java/com/code_intelligence/jazzer/agent:__pkg__",
         "//src/main/java/com/code_intelligence/jazzer/android:__pkg__",
         "//src/main/java/com/code_intelligence/jazzer/driver:__subpackages__",
+        "//src/main/java/com/code_intelligence/jazzer/compile:__subpackages__",
         "//src/main/java/com/code_intelligence/jazzer/junit:__pkg__",
         "//src/test/java/com/code_intelligence/jazzer/driver:__subpackages__",
     ],
     deps = [
         ":opt_item",
+        "//src/main/java/com/code_intelligence/jazzer/runtime:constants",
         "//src/main/java/com/code_intelligence/jazzer:constants",
         "//src/main/java/com/code_intelligence/jazzer/utils:log",
     ],
@@ -184,7 +179,10 @@ java_jni_library(
     srcs = ["SignalHandler.java"],
     native_libs = ["//src/main/native/com/code_intelligence/jazzer/driver:jazzer_signal_handler"],
     visibility = ["//src/main/native/com/code_intelligence/jazzer/driver:__pkg__"],
-    deps = [":opt"],
+    deps = [
+        ":opt",
+        "//src/main/java/com/code_intelligence/jazzer/runtime:constants",
+    ],
 )
 
 ktlint()

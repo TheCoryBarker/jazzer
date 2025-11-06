@@ -42,8 +42,8 @@ def jazzer_dependencies(android = False):
     maybe(
         http_archive,
         name = "io_bazel_rules_kotlin",
-        sha256 = "01293740a16e474669aba5b5a1fe3d368de5832442f164e4fbfc566815a8bc3a",
-        url = "https://github.com/bazelbuild/rules_kotlin/releases/download/v1.8/rules_kotlin_release.tgz",
+        sha256 = "3b772976fec7bdcda1d84b9d39b176589424c047eb2175bed09aac630e50af43",
+        url = "https://github.com/bazelbuild/rules_kotlin/releases/download/v1.9.6/rules_kotlin-v1.9.6.tar.gz",
     )
 
     maybe(
@@ -183,6 +183,13 @@ def jazzer_dependencies(android = False):
     )
 
     maybe(
+        http_jar,
+        name = "r8_remote",
+        url = "https://storage.googleapis.com/r8-releases/raw/8.4.5-dev/r8.jar",
+        #file = "/usr/local/google/home/cobark/Desktop/Repos/aosp/prebuilts/r8/r8.jar",
+    )
+
+    maybe(
         http_archive,
         name = "jazzer_libfuzzer",
         build_file = Label("//third_party:libFuzzer.BUILD"),
@@ -190,12 +197,3 @@ def jazzer_dependencies(android = False):
         strip_prefix = "llvm-project-jazzer-2023-04-25/compiler-rt/lib/fuzzer",
         url = "https://github.com/CodeIntelligenceTesting/llvm-project-jazzer/archive/refs/tags/2023-04-25.tar.gz",
     )
-
-    if android:
-        maybe(
-            git_repository,
-            name = "jazzer_slicer",
-            remote = "https://android.googlesource.com/platform/tools/dexter",
-            build_file = "//third_party:slicer.BUILD",
-            commit = "0fe35538da107ff48da6e9f9b92b55b014973bf8",
-        )

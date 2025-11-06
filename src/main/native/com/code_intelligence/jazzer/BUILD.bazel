@@ -41,6 +41,10 @@ DYNAMIC_SYMBOLS_TO_EXPORT = [
 cc_jni_library(
     name = "jazzer_preload",
     srcs = ["jazzer_preload.c"],
+    copts = select({
+        "@platforms//os:android": ["-ftls-model=global-dynamic"],
+        "//conditions:default": [],
+    }),
     linkopts = select({
         "@platforms//os:linux": [
             "-Wl,--export-dynamic-symbol=" + symbol
@@ -55,6 +59,9 @@ cc_jni_library(
     }),
     platforms = MULTI_PLATFORM,
     target_compatible_with = SKIP_ON_WINDOWS,
-    visibility = ["//src/main/java/com/code_intelligence/jazzer:__pkg__"],
+    visibility = [
+        "//src/main/java/com/code_intelligence/jazzer:__pkg__",
+        "//src/main/java/com/code_intelligence/jazzer/android:__pkg__",
+    ],
     deps = ["//src/main/native/com/code_intelligence/jazzer/driver:sanitizer_hooks_with_pc"],
 )

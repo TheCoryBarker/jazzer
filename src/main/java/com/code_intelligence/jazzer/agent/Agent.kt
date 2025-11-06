@@ -20,7 +20,6 @@ import com.code_intelligence.jazzer.driver.Opt
 import com.code_intelligence.jazzer.instrumentor.CoverageRecorder
 import com.code_intelligence.jazzer.instrumentor.Hooks
 import com.code_intelligence.jazzer.instrumentor.InstrumentationType
-import com.code_intelligence.jazzer.sanitizers.Constants
 import com.code_intelligence.jazzer.utils.ClassNameGlobber
 import com.code_intelligence.jazzer.utils.Log
 import com.code_intelligence.jazzer.utils.ManifestUtils
@@ -48,8 +47,7 @@ fun installInternal(
     dumpClassesDir: String = Opt.dumpClassesDir.get(),
     additionalClassesExcludes: List<String> = Opt.additionalClassesExcludes.get(),
 ) {
-    val allCustomHookNames = (Constants.SANITIZER_HOOK_NAMES + userHookNames).toSet()
-    check(allCustomHookNames.isNotEmpty()) { "No hooks registered; expected at least the built-in hooks" }
+    val allCustomHookNames = userHookNames.toSet()
     val customHookNames = allCustomHookNames - disabledHookNames.toSet()
     val disabledCustomHooksToPrint = allCustomHookNames - customHookNames.toSet()
     if (disabledCustomHooksToPrint.isNotEmpty()) {

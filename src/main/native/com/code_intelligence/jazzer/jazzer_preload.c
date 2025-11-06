@@ -211,7 +211,8 @@ __attribute__((visibility("default"))) void __sanitizer_cov_pcs_init(
 // TODO: This is never updated and thus doesn't provide any information to the
 //  fuzzer.
 __attribute__((
-    visibility("default"))) _Thread_local uintptr_t __sancov_lowest_stack = 0;
+    visibility("default"),
+    tls_model("global-dynamic"))) _Thread_local uintptr_t __sancov_lowest_stack = 0;
 
 __attribute__((visibility("default"))) void jazzer_preload_init(void *handle) {
   INIT_LIBC_HOOK(handle, bcmp);

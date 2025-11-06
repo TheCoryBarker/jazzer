@@ -5,11 +5,7 @@ cc_jni_library(
     name = "jazzer_driver",
     platforms = MULTI_PLATFORM,
     visibility = [
-        "//src/jmh:__subpackages__",
-        "//src/main/java/com/code_intelligence/jazzer/driver:__pkg__",
-        "//src/main/java/com/code_intelligence/jazzer/junit:__pkg__",
-        "//src/main/java/com/code_intelligence/jazzer/runtime:__pkg__",
-        "//src/test:__subpackages__",
+        "//visibility:public",
     ],
     deps = [
         ":jazzer_driver_lib",
@@ -19,6 +15,7 @@ cc_jni_library(
         "@platforms//os:windows": [],
         "//conditions:default": [":init_jazzer_preload"],
     }),
+    copts = ["-fPIC"],
 )
 
 cc_library(
@@ -31,6 +28,7 @@ cc_library(
         ":libfuzzer_callbacks",
         ":mutator",
     ],
+    copts = ["-fPIC"],
 )
 
 cc_jni_library(
@@ -42,6 +40,7 @@ cc_jni_library(
     deps = [
         "//src/main/java/com/code_intelligence/jazzer/android:android_runtime.hdrs",
     ],
+    copts = ["-fPIC"],
 )
 
 cc_library(
@@ -51,6 +50,7 @@ cc_library(
     deps = ["//src/main/java/com/code_intelligence/jazzer/runtime:coverage_map.hdrs"],
     # Symbols are only referenced dynamically via JNI.
     alwayslink = True,
+    copts = ["-fPIC"],
 )
 
 cc_library(
@@ -61,6 +61,7 @@ cc_library(
         "@platforms//os:windows": [],
         "//conditions:default": ["-ldl"],
     }),
+    copts = ["-fPIC"],
     deps = [
         ":sanitizer_symbols",
         "//src/main/java/com/code_intelligence/jazzer/runtime:fuzz_target_runner_natives.hdrs",
@@ -80,13 +81,18 @@ cc_library(
     ],
     # Symbols may only be referenced dynamically via JNI.
     alwayslink = True,
+    copts = ["-fPIC"],
 )
 
 cc_jni_library(
     name = "jazzer_fuzzed_data_provider",
     platforms = MULTI_PLATFORM,
-    visibility = ["//src/main/java/com/code_intelligence/jazzer/driver:__pkg__"],
+    visibility = [
+        "//src/main/java/com/code_intelligence/jazzer/driver:__pkg__",
+        "//src/main/java/com/code_intelligence/jazzer/android:__pkg__",
+    ],
     deps = [":fuzzed_data_provider"],
+    copts = ["-fPIC"],
 )
 
 cc_library(
@@ -97,19 +103,25 @@ cc_library(
         "//src/main/java/com/code_intelligence/jazzer/runtime:trace_data_flow_native_callbacks.hdrs",
     ],
     alwayslink = True,
+    copts = ["-fPIC"],
 )
 
 cc_jni_library(
     name = "jazzer_signal_handler",
     srcs = ["signal_handler.cpp"],
     platforms = MULTI_PLATFORM,
-    visibility = ["//src/main/java/com/code_intelligence/jazzer/driver:__pkg__"],
+    copts = ["-fPIC"],
+    visibility = [
+        "//src/main/java/com/code_intelligence/jazzer/driver:__pkg__",
+        "//src/main/java/com/code_intelligence/jazzer/android:__pkg__",
+    ],
     deps = ["//src/main/java/com/code_intelligence/jazzer/driver:signal_handler.hdrs"],
 )
 
 cc_library(
     name = "libfuzzer_callbacks",
     srcs = ["libfuzzer_callbacks.cpp"],
+    copts = ["-fPIC"],
     deps = [
         "//src/main/java/com/code_intelligence/jazzer/runtime:trace_data_flow_native_callbacks.hdrs",
         "@com_google_absl//absl/strings",
@@ -124,6 +136,7 @@ cc_library(
     deps = ["//src/main/java/com/code_intelligence/jazzer/runtime:mutator.hdrs"],
     # Symbols are only referenced dynamically via JNI.
     alwayslink = True,
+    copts = ["-fPIC"],
 )
 
 cc_library(
@@ -134,12 +147,14 @@ cc_library(
     deps = ["@fmeum_rules_jni//jni"],
     # Symbols are only referenced dynamically via JNI.
     alwayslink = True,
+    copts = ["-fPIC"],
 )
 
 cc_library(
     name = "sanitizer_hooks_with_pc",
     hdrs = ["sanitizer_hooks_with_pc.h"],
     visibility = ["//:__subpackages__"],
+    copts = ["-fPIC"],
 )
 
 cc_library(
@@ -147,6 +162,7 @@ cc_library(
     srcs = ["sanitizer_symbols.cpp"],
     # Symbols are referenced dynamically by libFuzzer.
     alwayslink = True,
+    copts = ["-fPIC"],
 )
 
 cc_test(

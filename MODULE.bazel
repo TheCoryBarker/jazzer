@@ -1,0 +1,43 @@
+"""Jazzer MODULE.bazel - Bzlmod configuration for Bazel 7.4.0
+
+Hybrid mode: Using bzlmod for Android rules compatibility,
+while keeping WORKSPACE for other dependencies.
+"""
+
+module(
+    name = "jazzer",
+    version = "0.0.0",
+)
+
+# Android support - using bzlmod for better compatibility
+# Using main branch to get Java 16+ compatibility fix (records error)
+bazel_dep(name = "rules_android", version = "0.6.5")
+git_override(
+    module_name = "rules_android",
+    remote = "https://github.com/bazelbuild/rules_android.git",
+    commit = "5868b2023771228e24cddc490d6fa32ed82f62d7",
+)
+bazel_dep(name = "rules_android_ndk", version = "0.1.3")
+
+# Core dependencies handled by bzlmod for Android compatibility
+bazel_dep(name = "rules_java", version = "8.13.0")
+bazel_dep(name = "rules_cc", version = "0.1.1")
+bazel_dep(name = "platforms", version = "0.0.11")
+
+# Configure Android SDK repository
+android_sdk_repository_extension = use_extension("@rules_android//rules/android_sdk_repository:rule.bzl", "android_sdk_repository_extension")
+android_sdk_repository_extension.configure(
+    path = "/usr/local/google/home/cobark/Android/Sdk",
+    api_level = 36,
+)
+use_repo(android_sdk_repository_extension, "androidsdk")
+register_toolchains("@androidsdk//:sdk-36-toolchain")
+
+# Configure Android NDK repository
+android_ndk_repository_extension = use_extension("@rules_android_ndk//:extension.bzl", "android_ndk_repository_extension")
+android_ndk_repository_extension.configure(
+    path = "/usr/local/google/home/cobark/Android/Sdk/ndk/29.0.14206865",
+    api_level = 34,
+)
+use_repo(android_ndk_repository_extension, "androidndk")
+register_toolchains("@androidndk//:all")
