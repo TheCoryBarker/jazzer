@@ -62,6 +62,7 @@ public class R8Wrapper {
   }
 
   public static void main(String[] args) throws Throwable {
+    logger.info("R8Wrapper main inputs: " + String.join(" ", args));
     R8Wrapper.setOptions();
     List<String> jarfiles = R8Wrapper.parseJarFile(args);
 

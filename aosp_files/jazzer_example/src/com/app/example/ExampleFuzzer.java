@@ -10,6 +10,6 @@ import android.util.Log;
 public class ExampleFuzzer {
     private static final String TAG = "FuzzerExample";
     public static void fuzzerTestOneInput(FuzzedDataProvider data) {
-        TestClass.test(data.consumeInt());
+        TestClass.test(data);
     }
 }

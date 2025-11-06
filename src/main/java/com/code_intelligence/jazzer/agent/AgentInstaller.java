@@ -18,8 +18,10 @@ import java.io.File;
 import java.lang.instrument.Instrumentation;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.logging.Logger;
+import java.util.jar.JarFile;
 
 import net.bytebuddy.agent.ByteBuddyAgent;
 
@@ -46,6 +48,38 @@ public class AgentInstaller {
 
     if (!enableAgent) {
       return;
+    }
+
+    try {
+      Class<?> agent = Class.forName("com.code_intelligence.jazzer.agent.Agent");
+      Method install = agent.getMethod("install", Instrumentation.class);
+      install.invoke(null, instrumentation);
+    } catch (ClassNotFoundException | InvocationTargetException | NoSuchMethodException
+        | IllegalAccessException e) {
+      throw new IllegalStateException("Failed to run Agent.install", e);
+    }
+  }
+
+  /**
+   * Installs the Jazzer agent for build-time instrumentation and appends the given jars to the
+   * bootstrap classloader search so that hook classes contained in those jars are resolvable
+   * during hook discovery.
+   */
+  public static void installWithHookJars(List<String> hookJars) {
+    if (!hasBeenInstalled.compareAndSet(false, true)) {
+      return;
+    }
+
+    Instrumentation instrumentation = ByteBuddyAgent.install();
+
+    if (hookJars != null) {
+      for (String jarPath : hookJars) {
+        try {
+          instrumentation.appendToBootstrapClassLoaderSearch(new JarFile(jarPath));
+        } catch (Throwable t) {
+          logger.warning("Failed to append to bootstrap: " + jarPath + " - " + t);
+        }
+      }
     }
 
     try {

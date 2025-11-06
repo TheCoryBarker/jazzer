@@ -51,7 +51,20 @@ import java.util.zip.ZipOutputStream;
 public class BuildInstrumentor {
   public static boolean instrumentJars(List<String> jarList)
       throws IOException {
-    AgentInstaller.install(true);
+    // Configure TCCL to include all program jars so hook discovery can load hooks from them.
+    ClassLoader previousCl = Thread.currentThread().getContextClassLoader();
+    try {
+      List<URL> urls = new ArrayList<>();
+      for (String jar : jarList) {
+        urls.add(new File(jar).toURI().toURL());
+      }
+      ClassLoader hooksCl = new URLClassLoader(urls.toArray(new URL[0]), ClassLoader.getSystemClassLoader());
+      Thread.currentThread().setContextClassLoader(hooksCl);
+
+      AgentInstaller.install(true);
+    } finally {
+      Thread.currentThread().setContextClassLoader(previousCl);
+    }
     // TODO: as a working proof of concept, this has only been tested on one jar.
     // This should be fine for most scenarios since this should be happening directly
     // before dexing.
