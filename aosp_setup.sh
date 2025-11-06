@@ -124,6 +124,27 @@ setup_r8_cmd() {
   rm -f "$AOSP_R8_PATH" || true
   cp "$JAZZER_R8_PATH" "$AOSP_R8_PATH"
   echo "Updated AOSP r8.jar at $AOSP_R8_PATH"
+
+  # Ensure default Jazzer instrumentation config exists
+  local JAZZER_CFG_DIR="$AOSP_TOP/prebuilts/jazzer"
+  local JAZZER_CFG_FILE="$JAZZER_CFG_DIR/jazzer_instrumentation_config.json"
+  if [ ! -f "$JAZZER_CFG_FILE" ]; then
+    mkdir -p "$JAZZER_CFG_DIR"
+    cat > "$JAZZER_CFG_FILE" <<'EOF'
+{
+  "enabled_hooks": [
+    "com.code_intelligence.jazzer.sanitizers.IntentRedirection"
+  ],
+  "instrumentation_includes": [
+    "com.app.**"
+  ],
+  "instrumentation_excludes": [
+    "com.code_intelligence.jazzer.**"
+  ]
+}
+EOF
+    echo "Created default Jazzer instrumentation config at $JAZZER_CFG_FILE"
+  fi
 }
 
 setup_jazzer_runtime_cmd() {
@@ -136,12 +157,8 @@ setup_jazzer_runtime_cmd() {
   require_cmd bazelisk
 
   # Clean jazzer runtime related prebuilts
-  rm -rf "$AOSP_TOP/out/soong/.intermediates/tools/security/fuzzing/app_lib/libjazzer_driver" || true
-  rm -rf "$AOSP_TOP/out/target/product/generic_arm64/symbols/system/app/AppCory/AppCory.apk/lib/arm64-v8a/libjazzer_driver.so" || true
+  rm -rf "$AOSP_TOP/out/soong/.intermediates/tools/security/fuzzing/jazzer" || true
   rm -rf "$AOSP_TOP/out/target/product/generic_arm64/symbols/system/app" || true
-  rm -rf "$AOSP_TOP/out/soong/.intermediates/tools/security/fuzzing/app_example/" || true
-  rm -rf "$AOSP_TOP/out/soong/.intermediates/tools/security/fuzzing/app_lib/app_fuzz_lib" || true
-  rm -rf "$AOSP_TOP/out/soong/.intermediates/tools/security/fuzzing/app_lib/jazzer_runtime" || true
 
   # Build jazzer android deploy jar
   bazelisk build --config=android_arm //src/main/java/com/code_intelligence/jazzer/android:jazzer_android_deploy.jar
